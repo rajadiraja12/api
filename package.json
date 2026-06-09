@@ -1,6 +1,7 @@
 {
   "name": "raja-ai-netlify",
   "version": "1.0.0",
+  "description": "RAJA AI with Netlify Functions",
   "dependencies": {
     "node-fetch": "^2.7.0"
   }
