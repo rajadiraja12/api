@@ -266,6 +266,9 @@ Sekarang jawab dengan gaya betawi lo!`;
         let isListening = false;
         let isProcessing = false;
 
+        // ✅ ENDPOINT YANG BENAR
+        const FUNCTION_URL = '/.netlify/functions/ai-chat';
+
         function addMessage(role, text, isUser = false) {
             const chatArea = document.getElementById('chatArea');
             const messageDiv = document.createElement('div');
@@ -331,21 +334,24 @@ Sekarang jawab dengan gaya betawi lo!`;
         // Test koneksi ke Netlify Function
         async function testConnection() {
             try {
-                const response = await fetch('/api/functions/ai-chat', {
+                const response = await fetch(FUNCTION_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'test' })
                 });
                 
                 if (response.ok) {
+                    const data = await response.json();
+                    console.log('Test connection success:', data);
                     updateStatus('✅ SIAP! Pilih suara, trus klik tombol merah buat mulai rekam.');
                     return true;
                 } else {
-                    updateStatus('⚠️ Server error, coba refresh halaman!', true);
+                    const error = await response.text();
+                    updateStatus(`⚠️ Server error: ${response.status} ${error}`, true);
                     return false;
                 }
             } catch (error) {
-                updateStatus(`❌ Gagal konek ke server: ${error.message}. Coba deploy ulang!`, true);
+                updateStatus(`❌ Gagal konek ke server: ${error.message}. Cek Network tab!`, true);
                 return false;
             }
         }
@@ -354,7 +360,7 @@ Sekarang jawab dengan gaya betawi lo!`;
             updateStatus('🤔 Lagi mikirin jawaban kasar...');
             
             try {
-                const response = await fetch('/api/functions/ai-chat', {
+                const response = await fetch(FUNCTION_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -373,7 +379,9 @@ Sekarang jawab dengan gaya betawi lo!`;
                     try {
                         const errorData = await response.json();
                         errorMsg = errorData.error || errorMsg;
-                    } catch(e) {}
+                    } catch(e) {
+                        errorMsg = await response.text() || errorMsg;
+                    }
                     throw new Error(errorMsg);
                 }
                 
@@ -394,7 +402,7 @@ Sekarang jawab dengan gaya betawi lo!`;
             updateStatus(`🔊 Lagi ngomong pake ${VOICE_NAMES[selectedVoice]}...`);
             
             try {
-                const response = await fetch('/api/functions/ai-chat', {
+                const response = await fetch(FUNCTION_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -411,7 +419,9 @@ Sekarang jawab dengan gaya betawi lo!`;
                     try {
                         const errorData = await response.json();
                         errorMsg = errorData.error || errorMsg;
-                    } catch(e) {}
+                    } catch(e) {
+                        errorMsg = await response.text() || errorMsg;
+                    }
                     throw new Error(errorMsg);
                 }
                 
