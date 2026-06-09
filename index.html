@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>RAJA AI - SUARA MANUSIA BANGET (FINAL)</title>
+    <title>RAJA AI - SUARA MANUSIA BANGET dengan 3D Character</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -15,6 +15,19 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* 3D Canvas - Fullscreen background */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
         }
 
         .container {
@@ -27,6 +40,8 @@
             padding: 30px;
             text-align: center;
             border: 1px solid #ff6b6b;
+            position: relative;
+            z-index: 1;
         }
 
         h1 { 
@@ -192,20 +207,28 @@
             font-size: 11px;
         }
         
-        .error-badge {
-            background: #ff0000;
-            color: white;
-            padding: 5px;
-            border-radius: 5px;
+        /* 3D character info */
+        .char-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            padding: 5px 10px;
+            border-radius: 10px;
+            color: #ff6b6b;
             font-size: 11px;
-            margin-top: 10px;
+            z-index: 1;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
+    <div id="canvas-container"></div>
+    <div class="char-info">🤖 3D Character Active</div>
+    
     <div class="container">
-        <h1>🐱 RAJA AI <span style="font-size: 0.6em;">🔥 SUARA MANUSIA BANGET</span></h1>
-        <div class="badge">KLIK SEKALI MULAI REKAM - KLIK LAGI BERHENTI</div>
+        <h1>🐱 RAJA AI <span style="font-size: 0.6em;">🔥 3D CHARACTER</span></h1>
+        <div class="badge">KLIK SEKALI MULAI REKAM - KARAKTER 3D AKTIF!</div>
 
         <div class="voice-selector">
             <button id="voiceAdam" class="active">🗣️ MAULANA (Cowok)</button>
@@ -217,7 +240,7 @@
         <div class="chat-area" id="chatArea">
             <div class="message ai-message">
                 <div class="message-label">🐱 RAJA AI:</div>
-                <div class="message-bubble">WOOYYY AKHIRNYA BENER! API key aman di server, gak bisa dicuri orang! Suara gue bakal naik turun kayak orang betawi asli! COBAIN GOBLOK! 🔥🐱</div>
+                <div class="message-bubble">WOOYYY! Gue punya karakter 3D sekarang! Keliatan kan robotnya? COBAIN GOBLOK! 🔥🐱🤖</div>
             </div>
         </div>
 
@@ -227,10 +250,306 @@
         </div>
 
         <div class="status" id="status">
-            ⚙️ Check koneksi ke server...
+            ⚙️ Loading 3D character...
         </div>
-        <small>🔒 API key aman disimpan di server Netlify</small>
+        <small>🔒 API key aman disimpan di server Netlify | 🤖 Karakter 3D animasi</small>
     </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        
+        // Setup scene
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050510);
+        scene.fog = new THREE.FogExp2(0x050510, 0.03);
+        
+        // Camera
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(2, 1.5, 3);
+        camera.lookAt(0, 1, 0);
+        
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.setClearColor(0x050510);
+        container.appendChild(renderer.domElement);
+        
+        // Controls for interactivity (optional, bisa di-enable kalau mau)
+        // const controls = new OrbitControls(camera, renderer.domElement);
+        // controls.enableDamping = true;
+        // controls.enableZoom = false;
+        // controls.enablePan = false;
+        // controls.target.set(0, 1, 0);
+        
+        // Lighting
+        // Ambient light
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+        scene.add(ambientLight);
+        
+        // Main directional light
+        const mainLight = new THREE.DirectionalLight(0xff6b6b, 1.2);
+        mainLight.position.set(2, 3, 2);
+        mainLight.castShadow = true;
+        mainLight.receiveShadow = true;
+        mainLight.shadow.mapSize.width = 1024;
+        mainLight.shadow.mapSize.height = 1024;
+        scene.add(mainLight);
+        
+        // Fill light
+        const fillLight = new THREE.PointLight(0x4ecdc4, 0.5);
+        fillLight.position.set(-1, 1.5, 2);
+        scene.add(fillLight);
+        
+        // Back rim light
+        const rimLight = new THREE.PointLight(0xff8888, 0.8);
+        rimLight.position.set(0, 1.5, -2);
+        scene.add(rimLight);
+        
+        // Ground light
+        const groundLight = new THREE.PointLight(0x335588, 0.3);
+        groundLight.position.set(0, -1, 0);
+        scene.add(groundLight);
+        
+        // Particle stars background
+        const starGeometry = new THREE.BufferGeometry();
+        const starCount = 1500;
+        const starPositions = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+            starPositions[i*3] = (Math.random() - 0.5) * 200;
+            starPositions[i*3+1] = (Math.random() - 0.5) * 100;
+            starPositions[i*3+2] = (Math.random() - 0.5) * 50 - 20;
+        }
+        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0.6 });
+        const stars = new THREE.Points(starGeometry, starMaterial);
+        scene.add(stars);
+        
+        // Floating particles
+        const particleCount = 300;
+        const particles = [];
+        const particleGeo = new THREE.SphereGeometry(0.03, 6, 6);
+        
+        for (let i = 0; i < particleCount; i++) {
+            const material = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x331100 });
+            const particle = new THREE.Mesh(particleGeo, material);
+            particle.userData = {
+                speedX: (Math.random() - 0.5) * 0.008,
+                speedY: (Math.random() - 0.5) * 0.008,
+                speedZ: (Math.random() - 0.5) * 0.008,
+                originalX: (Math.random() - 0.5) * 5,
+                originalY: Math.random() * 3,
+                originalZ: (Math.random() - 0.5) * 4 - 1
+            };
+            particle.position.set(
+                particle.userData.originalX,
+                particle.userData.originalY,
+                particle.userData.originalZ
+            );
+            scene.add(particle);
+            particles.push(particle);
+        }
+        
+        // Load 3D character (Robot model from Three.js examples)
+        let model = null;
+        let mixer = null;
+        let currentAction = null;
+        let speakingAnimation = false;
+        
+        const loader = new GLTFLoader();
+        
+        // Using a free robot model from Three.js examples
+        const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive.glb';
+        
+        loader.load(modelUrl, 
+            (gltf) => {
+                model = gltf.scene;
+                model.scale.set(1.2, 1.2, 1.2);
+                model.position.set(0, -0.5, 0);
+                model.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = false;
+                    }
+                });
+                scene.add(model);
+                
+                // Setup animations
+                mixer = new THREE.AnimationMixer(model);
+                const clips = gltf.animations;
+                
+                // Find idle animation
+                const idleClip = clips.find(clip => clip.name === 'Idle') || clips[0];
+                if (idleClip) {
+                    currentAction = mixer.clipAction(idleClip);
+                    currentAction.play();
+                }
+                
+                updateStatus('✅ 3D Character siap! Mulai rekam suara!');
+                console.log('Model loaded successfully!', clips.map(c => c.name));
+            },
+            (xhr) => {
+                // Progress
+                const percent = Math.floor((xhr.loaded / xhr.total) * 100);
+                if (percent < 100) {
+                    updateStatus(`⏳ Loading 3D character: ${percent}%...`);
+                }
+            },
+            (error) => {
+                console.error('Error loading model:', error);
+                updateStatus('⚠️ Gagal load 3D model, pakai fallback character', true);
+                createFallbackCharacter();
+            }
+        );
+        
+        // Fallback character if model fails to load
+        function createFallbackCharacter() {
+            const group = new THREE.Group();
+            
+            // Body
+            const bodyGeo = new THREE.BoxGeometry(0.8, 1, 0.6);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x331100 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = -0.2;
+            body.castShadow = true;
+            group.add(body);
+            
+            // Head
+            const headGeo = new THREE.SphereGeometry(0.5, 32, 32);
+            const headMat = new THREE.MeshStandardMaterial({ color: 0xff8888 });
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 0.5;
+            head.castShadow = true;
+            group.add(head);
+            
+            // Eyes
+            const eyeGeo = new THREE.SphereGeometry(0.1, 32, 32);
+            const leftEye = new THREE.Mesh(eyeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff }));
+            leftEye.position.set(-0.18, 0.65, 0.48);
+            group.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff }));
+            rightEye.position.set(0.18, 0.65, 0.48);
+            group.add(rightEye);
+            
+            group.position.set(0, -0.3, 0);
+            scene.add(group);
+            model = group;
+            
+            updateStatus('✅ Fallback character aktif!', false);
+        }
+        
+        // Animation variables
+        let time = 0;
+        let isSpeaking = false;
+        let speakIntensity = 0;
+        
+        // Function to trigger speaking animation
+        window.animateSpeaking = function(speaking) {
+            isSpeaking = speaking;
+            
+            if (speaking && mixer && model) {
+                // Change to talking animation if available
+                if (mixer && currentAction) {
+                    // Just let the idle animation play, but we'll add scale effect
+                    speakIntensity = 1;
+                }
+            } else {
+                speakIntensity = 0;
+            }
+        };
+        
+        // Animation loop
+        let lastTime = 0;
+        
+        function animate() {
+            const now = performance.now();
+            const delta = Math.min(1/30, (now - lastTime) / 1000);
+            lastTime = now;
+            
+            requestAnimationFrame(animate);
+            time += 0.016;
+            
+            // Update mixer for model animations
+            if (mixer) {
+                mixer.update(delta);
+            }
+            
+            // Speaking effect (scale/rotate when talking)
+            if (model && isSpeaking) {
+                const scaleVal = 1 + Math.sin(time * 30) * 0.03;
+                model.scale.set(scaleVal, scaleVal, scaleVal);
+                model.rotation.z = Math.sin(time * 25) * 0.02;
+            } else if (model && !isSpeaking) {
+                // Smooth return to normal
+                model.scale.lerp(new THREE.Vector3(1.2, 1.2, 1.2), 0.1);
+                model.rotation.z *= 0.95;
+            }
+            
+            // Animate stars rotation
+            stars.rotation.y += 0.0005;
+            stars.rotation.x += 0.0003;
+            
+            // Animate floating particles
+            particles.forEach(particle => {
+                particle.position.x += particle.userData.speedX;
+                particle.position.y += particle.userData.speedY;
+                particle.position.z += particle.userData.speedZ;
+                
+                // Return to origin
+                particle.position.x += (particle.userData.originalX - particle.position.x) * 0.01;
+                particle.position.y += (particle.userData.originalY - particle.position.y) * 0.01;
+                particle.position.z += (particle.userData.originalZ - particle.position.z) * 0.01;
+                
+                particle.rotation.x += 0.05;
+                particle.rotation.y += 0.05;
+            });
+            
+            // Gentle camera movement
+            camera.position.x += (0 - camera.position.x) * 0.05;
+            camera.lookAt(0, 1, 0);
+            
+            renderer.render(scene, camera);
+        }
+        
+        animate();
+        
+        // Handle window resize
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function updateStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = message;
+            statusDiv.style.background = isError ? '#330000' : '#2d2d2d';
+            statusDiv.style.color = isError ? '#ff6b6b' : '#ff6b6b';
+        }
+        
+        // Make updateStatus available globally
+        window.updateStatus = updateStatus;
+        
+        // Connect to existing voice logic
+        setTimeout(() => {
+            updateStatus('✅ 3D Character siap! Klik tombol merah buat mulai.');
+        }, 2000);
+    </script>
 
     <script>
         // Voice configuration
@@ -265,8 +584,8 @@ Sekarang jawab dengan gaya betawi lo!`;
         let recognition = null;
         let isListening = false;
         let isProcessing = false;
+        let currentAudio = null;
 
-        // ✅ ENDPOINT YANG BENAR
         const FUNCTION_URL = '/.netlify/functions/ai-chat';
 
         function addMessage(role, text, isUser = false) {
@@ -331,7 +650,6 @@ Sekarang jawab dengan gaya betawi lo!`;
 
         setActiveVoice(selectedVoice);
 
-        // Test koneksi ke Netlify Function
         async function testConnection() {
             try {
                 const response = await fetch(FUNCTION_URL, {
@@ -341,17 +659,14 @@ Sekarang jawab dengan gaya betawi lo!`;
                 });
                 
                 if (response.ok) {
-                    const data = await response.json();
-                    console.log('Test connection success:', data);
-                    updateStatus('✅ SIAP! Pilih suara, trus klik tombol merah buat mulai rekam.');
+                    updateStatus('✅ SIAP! Karakter 3D aktif, klik tombol merah buat mulai rekam.');
                     return true;
                 } else {
-                    const error = await response.text();
-                    updateStatus(`⚠️ Server error: ${response.status} ${error}`, true);
+                    updateStatus('⚠️ Server error, coba refresh halaman!', true);
                     return false;
                 }
             } catch (error) {
-                updateStatus(`❌ Gagal konek ke server: ${error.message}. Cek Network tab!`, true);
+                updateStatus(`❌ Gagal konek ke server: ${error.message}`, true);
                 return false;
             }
         }
@@ -379,9 +694,7 @@ Sekarang jawab dengan gaya betawi lo!`;
                     try {
                         const errorData = await response.json();
                         errorMsg = errorData.error || errorMsg;
-                    } catch(e) {
-                        errorMsg = await response.text() || errorMsg;
-                    }
+                    } catch(e) {}
                     throw new Error(errorMsg);
                 }
                 
@@ -401,6 +714,11 @@ Sekarang jawab dengan gaya betawi lo!`;
         async function textToSpeechElevenLabs(text) {
             updateStatus(`🔊 Lagi ngomong pake ${VOICE_NAMES[selectedVoice]}...`);
             
+            // Trigger speaking animation
+            if (window.animateSpeaking) {
+                window.animateSpeaking(true);
+            }
+            
             try {
                 const response = await fetch(FUNCTION_URL, {
                     method: 'POST',
@@ -419,9 +737,7 @@ Sekarang jawab dengan gaya betawi lo!`;
                     try {
                         const errorData = await response.json();
                         errorMsg = errorData.error || errorMsg;
-                    } catch(e) {
-                        errorMsg = await response.text() || errorMsg;
-                    }
+                    } catch(e) {}
                     throw new Error(errorMsg);
                 }
                 
@@ -434,20 +750,38 @@ Sekarang jawab dengan gaya betawi lo!`;
                 const audioBlob = base64ToBlob(data.audio, 'audio/mpeg');
                 const audioUrl = URL.createObjectURL(audioBlob);
                 const audio = new Audio(audioUrl);
+                currentAudio = audio;
                 
                 return new Promise((resolve, reject) => {
                     audio.onended = () => {
                         URL.revokeObjectURL(audioUrl);
+                        currentAudio = null;
+                        // Stop speaking animation
+                        if (window.animateSpeaking) {
+                            window.animateSpeaking(false);
+                        }
                         resolve();
                     };
                     audio.onerror = (e) => {
                         URL.revokeObjectURL(audioUrl);
+                        currentAudio = null;
+                        if (window.animateSpeaking) {
+                            window.animateSpeaking(false);
+                        }
                         reject(new Error('Gagal play audio'));
                     };
-                    audio.play().catch(reject);
+                    audio.play().catch((e) => {
+                        if (window.animateSpeaking) {
+                            window.animateSpeaking(false);
+                        }
+                        reject(e);
+                    });
                 });
             } catch (error) {
                 console.error('TTS Error:', error);
+                if (window.animateSpeaking) {
+                    window.animateSpeaking(false);
+                }
                 throw new Error(`TTS: ${error.message}`);
             }
         }
@@ -484,6 +818,9 @@ Sekarang jawab dengan gaya betawi lo!`;
                 console.error('Error:', error);
                 updateStatus(`❌ ${error.message}`, true);
                 addMessage('ai', `WOI ERROR! ${error.message}. Cek Netlify Function log!`, false);
+                if (window.animateSpeaking) {
+                    window.animateSpeaking(false);
+                }
             } finally {
                 isProcessing = false;
                 setLoading(false);
@@ -570,13 +907,15 @@ Sekarang jawab dengan gaya betawi lo!`;
         
         document.getElementById('clearBtn').addEventListener('click', () => {
             document.getElementById('chatArea').innerHTML = '';
-            addMessage('ai', 'WOOYYY! Chat dibersihin! Mulai lagi sekarang! 🔥🐱', false);
+            addMessage('ai', 'WOOYYY! Chat dibersihin! Mulai lagi sekarang! 🔥🐱🤖', false);
             if (isListening) stopVoiceRecognition();
             updateStatus('✅ Chat udah bersih!');
         });
         
         // Test connection on load
-        testConnection();
+        setTimeout(() => {
+            testConnection();
+        }, 3000);
     </script>
 </body>
 </html>
