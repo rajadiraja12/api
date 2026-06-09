@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>RAJA AI - SUARA MANUSIA BANGET (FINAL)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-width: 700px;
+            width: 100%;
+            padding: 30px;
+            text-align: center;
+            border: 1px solid #ff6b6b;
+        }
+
+        h1 { 
+            color: #ff6b6b; 
+            margin-bottom: 10px; 
+            font-size: 2em;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        .badge {
+            background: #ff6b6b;
+            color: black;
+            padding: 5px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .chat-area {
+            background: #1a1a1a;
+            border-radius: 20px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .user-message { align-items: flex-end; }
+        .ai-message { align-items: flex-start; }
+
+        .message-bubble {
+            max-width: 85%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            margin: 5px 0;
+            word-wrap: break-word;
+        }
+
+        .user-message .message-bubble {
+            background: #4ecdc4;
+            color: black;
+            border-bottom-right-radius: 5px;
+        }
+
+        .ai-message .message-bubble {
+            background: #2d2d2d;
+            color: #ff6b6b;
+            border-bottom-left-radius: 5px;
+            border: 1px solid #ff6b6b;
+        }
+
+        .message-label {
+            font-size: 0.75em;
+            color: #999;
+            margin-bottom: 3px;
+            font-weight: bold;
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-record {
+            background: #ff6b6b;
+            color: black;
+        }
+
+        .btn-record.recording {
+            background: #ff0000;
+            animation: pulse 1s infinite;
+            color: white;
+        }
+
+        .btn-clear {
+            background: #4ecdc4;
+            color: black;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,107,107,0.3);
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #2d2d2d;
+            font-size: 0.9em;
+            color: #ff6b6b;
+            font-weight: 500;
+            border: 1px solid #ff6b6b;
+        }
+
+        .voice-selector {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+            margin-bottom: 15px;
+        }
+
+        .voice-selector button {
+            flex: 1;
+            background: #333;
+            color: white;
+            padding: 8px;
+            font-size: 11px;
+            min-width: 80px;
+        }
+
+        .voice-selector button.active {
+            background: #ff6b6b;
+            color: black;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top: 2px solid #ff6b6b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        small {
+            color: #999;
+            font-size: 11px;
+        }
+        
+        .error-badge {
+            background: #ff0000;
+            color: white;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐱 RAJA AI <span style="font-size: 0.6em;">🔥 SUARA MANUSIA BANGET</span></h1>
+        <div class="badge">KLIK SEKALI MULAI REKAM - KLIK LAGI BERHENTI</div>
+
+        <div class="voice-selector">
+            <button id="voiceAdam" class="active">🗣️ MAULANA (Cowok)</button>
+            <button id="voiceAntoni">🎭 ULUL Amerika (Ekspresif)</button>
+            <button id="voiceBella">💁 INANG Santosa (Cewek)</button>
+            <button id="voiceDorothy">🔥 SITI (Cewek Kasar)</button>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <div class="message ai-message">
+                <div class="message-label">🐱 RAJA AI:</div>
+                <div class="message-bubble">WOOYYY AKHIRNYA BENER! API key aman di server, gak bisa dicuri orang! Suara gue bakal naik turun kayak orang betawi asli! COBAIN GOBLOK! 🔥🐱</div>
+            </div>
+        </div>
+
+        <div class="voice-controls">
+            <button class="btn-record" id="recordBtn">🎤 MULAI REKAM</button>
+            <button class="btn-clear" id="clearBtn">🗑️ BERSIHIN CHAT</button>
+        </div>
+
+        <div class="status" id="status">
+            ⚙️ Check koneksi ke server...
+        </div>
+        <small>🔒 API key aman disimpan di server Netlify</small>
+    </div>
+
+    <script>
+        // Voice configuration
+        let selectedVoice = localStorage.getItem('raja_voice') || 'Adam';
+        
+        const VOICE_IDS = {
+            Adam: 'pNInz6obpgDQGcFmaJgB',
+            Antoni: 'ErXwobaYiN019PkySvjV',
+            Bella: 'EXAVITQu4vr4xnSDxMaL',
+            Dorothy: 'THmdRseBiCqzMsZgjN1N'
+        };
+
+        const VOICE_NAMES = {
+            Adam: 'Maulana',
+            Antoni: 'Ulul',
+            Bella: 'Inang',
+            Dorothy: 'Siti'
+        };
+
+        const SYSTEM_PROMPT = `Lo adalah RUDY dengan nama RAJADIRAJA, red puma betawi super kasar dan gak punya filter.
+
+ATURAN WAJIB:
+1. PAKAI bahasa gaul betawi: "lo", "gue", "anjir", "tai", "goblok", "kocak", "mampus", "bangsat", "kampret", "njing", "ngentot"
+2. SUKA ngeroasting dengan nada tinggi-rendah
+3. NGOMONG ceplas-ceplos, gak peduli perasaan orang
+4. PAKE kata seru: "WOOYYY", "ANJIRRR", "NAH KAN", "HAHAHA", "WKWKWK", "CUS", "TAI"
+5. JAWAB singkat padat (1-2 kalimat) biar suaranya makin berasa
+6. JANGAN pernah pake bahasa sopan!
+
+Sekarang jawab dengan gaya betawi lo!`;
+
+        let recognition = null;
+        let isListening = false;
+        let isProcessing = false;
+
+        function addMessage(role, text, isUser = false) {
+            const chatArea = document.getElementById('chatArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            
+            const label = document.createElement('div');
+            label.className = 'message-label';
+            label.textContent = isUser ? '🗣️ LO:' : '🐱 RAJA AI:';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(label);
+            messageDiv.appendChild(bubble);
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function updateStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = message;
+            statusDiv.style.background = isError ? '#330000' : '#2d2d2d';
+            statusDiv.style.color = isError ? '#ff6b6b' : '#ff6b6b';
+        }
+
+        function setLoading(loading) {
+            const btn = document.getElementById('recordBtn');
+            if (loading) {
+                btn.innerHTML = '<span class="loading-spinner"></span> PROSES...';
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = isListening ? '🔴 BERHENTI REKAM' : '🎤 MULAI REKAM';
+                btn.disabled = false;
+            }
+        }
+
+        function setActiveVoice(voiceName) {
+            selectedVoice = voiceName;
+            localStorage.setItem('raja_voice', voiceName);
+            
+            ['Adam', 'Antoni', 'Bella', 'Dorothy'].forEach(v => {
+                const btn = document.getElementById(`voice${v}`);
+                if (btn) {
+                    if (v === voiceName) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
+            });
+            
+            updateStatus(`✅ Suara ${VOICE_NAMES[voiceName]} dipilih!`);
+        }
+        
+        document.getElementById('voiceAdam').addEventListener('click', () => setActiveVoice('Adam'));
+        document.getElementById('voiceAntoni').addEventListener('click', () => setActiveVoice('Antoni'));
+        document.getElementById('voiceBella').addEventListener('click', () => setActiveVoice('Bella'));
+        document.getElementById('voiceDorothy').addEventListener('click', () => setActiveVoice('Dorothy'));
+
+        setActiveVoice(selectedVoice);
+
+        // Test koneksi ke Netlify Function
+        async function testConnection() {
+            try {
+                const response = await fetch('/api/functions/ai-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'test' })
+                });
+                
+                if (response.ok) {
+                    updateStatus('✅ SIAP! Pilih suara, trus klik tombol merah buat mulai rekam.');
+                    return true;
+                } else {
+                    updateStatus('⚠️ Server error, coba refresh halaman!', true);
+                    return false;
+                }
+            } catch (error) {
+                updateStatus(`❌ Gagal konek ke server: ${error.message}. Coba deploy ulang!`, true);
+                return false;
+            }
+        }
+
+        async function callGroqAPI(userMessage) {
+            updateStatus('🤔 Lagi mikirin jawaban kasar...');
+            
+            try {
+                const response = await fetch('/api/functions/ai-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'chat',
+                        messages: [
+                            { role: 'system', content: SYSTEM_PROMPT },
+                            { role: 'user', content: userMessage }
+                        ]
+                    })
+                });
+                
+                if (!response.ok) {
+                    let errorMsg = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch(e) {}
+                    throw new Error(errorMsg);
+                }
+                
+                const data = await response.json();
+                
+                if (!data || !data.choices || !data.choices[0]) {
+                    throw new Error('Response format invalid dari server');
+                }
+                
+                return data.choices[0].message.content;
+            } catch (error) {
+                console.error('Groq API Error:', error);
+                throw new Error(`Groq: ${error.message}`);
+            }
+        }
+
+        async function textToSpeechElevenLabs(text) {
+            updateStatus(`🔊 Lagi ngomong pake ${VOICE_NAMES[selectedVoice]}...`);
+            
+            try {
+                const response = await fetch('/api/functions/ai-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'tts',
+                        text: text,
+                        voiceId: VOICE_IDS[selectedVoice]
+                    })
+                });
+                
+                if (!response.ok) {
+                    let errorMsg = `HTTP ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch(e) {}
+                    throw new Error(errorMsg);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.audio) {
+                    throw new Error('No audio data received');
+                }
+                
+                const audioBlob = base64ToBlob(data.audio, 'audio/mpeg');
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                
+                return new Promise((resolve, reject) => {
+                    audio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        resolve();
+                    };
+                    audio.onerror = (e) => {
+                        URL.revokeObjectURL(audioUrl);
+                        reject(new Error('Gagal play audio'));
+                    };
+                    audio.play().catch(reject);
+                });
+            } catch (error) {
+                console.error('TTS Error:', error);
+                throw new Error(`TTS: ${error.message}`);
+            }
+        }
+
+        function base64ToBlob(base64, mimeType) {
+            const byteCharacters = atob(base64);
+            const byteArrays = [];
+            for (let i = 0; i < byteCharacters.length; i += 512) {
+                const slice = byteCharacters.slice(i, i + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let j = 0; j < slice.length; j++) {
+                    byteNumbers[j] = slice.charCodeAt(j);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            return new Blob(byteArrays, { type: mimeType });
+        }
+
+        async function handleUserSpeech(text) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            try {
+                addMessage('user', text, true);
+                
+                const aiResponse = await callGroqAPI(text);
+                addMessage('ai', aiResponse, false);
+                
+                await textToSpeechElevenLabs(aiResponse);
+                
+                updateStatus('✅ Siap lagi! Klik tombol merah buat ngomong lagi.');
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus(`❌ ${error.message}`, true);
+                addMessage('ai', `WOI ERROR! ${error.message}. Cek Netlify Function log!`, false);
+            } finally {
+                isProcessing = false;
+                setLoading(false);
+            }
+        }
+
+        function startVoiceRecognition() {
+            if (isProcessing) {
+                updateStatus('❌ Lagi proses! Tunggu bentar!', true);
+                return;
+            }
+            
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                updateStatus('❌ Browser lo gak support voice! Pake Chrome!', true);
+                return;
+            }
+            
+            recognition = new SpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            
+            recognition.onstart = () => {
+                isListening = true;
+                const btn = document.getElementById('recordBtn');
+                btn.classList.add('recording');
+                btn.innerHTML = '🔴 BERHENTI REKAM';
+                updateStatus('🎤 Lagi dengerin... omong ap aja!');
+            };
+            
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                updateStatus(`📝 "${text}"`);
+                stopVoiceRecognition();
+                setLoading(true);
+                handleUserSpeech(text);
+            };
+            
+            recognition.onerror = (event) => {
+                if (event.error !== 'aborted') {
+                    updateStatus(`❌ Error: ${event.error}`, true);
+                }
+                stopVoiceRecognition();
+            };
+            
+            recognition.onend = () => {
+                if (isListening) {
+                    stopVoiceRecognition();
+                }
+            };
+            
+            recognition.start();
+        }
+        
+        function stopVoiceRecognition() {
+            if (recognition) {
+                try {
+                    recognition.abort();
+                } catch(e) {}
+                recognition = null;
+            }
+            isListening = false;
+            const btn = document.getElementById('recordBtn');
+            btn.classList.remove('recording');
+            btn.innerHTML = '🎤 MULAI REKAM';
+        }
+        
+        function toggleRecording() {
+            if (isProcessing) {
+                updateStatus('❌ Lagi proses! Tunggu!', true);
+                return;
+            }
+            
+            if (isListening) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
+            }
+        }
+        
+        document.getElementById('recordBtn').addEventListener('click', toggleRecording);
+        
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('chatArea').innerHTML = '';
+            addMessage('ai', 'WOOYYY! Chat dibersihin! Mulai lagi sekarang! 🔥🐱', false);
+            if (isListening) stopVoiceRecognition();
+            updateStatus('✅ Chat udah bersih!');
+        });
+        
+        // Test connection on load
+        testConnection();
+    </script>
+</body>
+</html>
