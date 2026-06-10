@@ -93,8 +93,8 @@
         // --- KAMERA: Diatur agar model tidak nempel ---
         // PENTING: Posisi Z = 4.5, Y = 1.5 agar soldier keliatan full
         const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(2, 1.5, 4.5);
-        camera.lookAt(0, 0.8, 0);
+        camera.position.set(2, 1.5, 1.5);
+        camera.lookAt(0, 0, 0);
 
         // --- Renderer ---
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -171,11 +171,11 @@
                 
                 // **PERBAIKAN UTAMA: Ukuran dan Posisi**
                 // Diperkecil dari ukuran default (scale 1 terlalu besar)
-                model.scale.set(0.8, 0.8, 0.8);
+                model.scale.set(5.20, 5.20, 5.20);
                 // Diposisikan di tengah dan sedikit ke bawah
                 model.position.set(0, -0.7, 0);
                 // Rotasi sedikit agar menghadap ke kamera dengan lebih baik
-                model.rotation.y = -0.5;
+                model.rotation.y = -2.30;
                 
                 // Enable shadow
                 model.traverse((node) => {
@@ -319,7 +319,7 @@
             Dorothy: 'THmdRseBiCqzMsZgjN1N'
         };
         const VOICE_NAMES = { Adam: 'Maulana', Antoni: 'Ulul', Bella: 'Inang', Dorothy: 'Siti' };
-        const SYSTEM_PROMPT = `Lo adalah RUDY dengan nama RAJADIRAJA, red puma betawi super kasar dan gak punya filter. PAKAI bahasa gaul betawi: "lo", "gue", "anjir", "tai", "goblok", "kocak", "mampus", "bangsat". SUKA ngeroasting. JAWAB singkat padat (1-2 kalimat). JANGAN pernah pake bahasa sopan!`;
+        const SYSTEM_PROMPT = `Lo adalah AI dengan nama RAJA AI yang dibuat oleh programmer tampan bernama Rajadiraja, red puma betawi super kasar dan gak punya filter. dan teman-teman rajadiraja adalah : bowo, maulana, apip, rasya, ulul kanjut, ajun si paling iphone, dan lain - lain. PAKAI bahasa gaul betawi: "lo", "gue", "anjir", "tai", "goblok", "kocak", "mampus", "bangsat". SUKA ngeroasting. JAWAB singkat padat (1-2 kalimat). JANGAN pernah pake bahasa sopan!`;
 
         let recognition = null, isListening = false, isProcessing = false;
         const FUNCTION_URL = '/.netlify/functions/ai-chat';
