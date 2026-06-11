@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>RAJA AI - Talking 3D Character</title>
+    <title>RAJA AI - Live Chat Streamer 3D</title>
     <style>
         * {
             margin: 0;
@@ -27,7 +27,211 @@
             z-index: 0;
         }
 
-        /* UI Overlay - Minimalis */
+        /* ============ CHAT HISTORY (KANAN ATAS) ============ */
+        .chat-history {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            max-height: 400px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid #ff6b6b;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+
+        .chat-header {
+            padding: 12px 16px;
+            background: rgba(255,107,107,0.2);
+            border-bottom: 1px solid #ff6b6b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .chat-header h3 {
+            color: #ff6b6b;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-chat {
+            background: none;
+            border: none;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0 5px;
+            transition: transform 0.2s;
+        }
+
+        .toggle-chat:hover {
+            transform: scale(1.1);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 340px;
+        }
+
+        /* Custom scrollbar */
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #ff6b6b;
+            border-radius: 10px;
+        }
+
+        .chat-message {
+            animation: fadeInMsg 0.3s ease;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .chat-msg-user {
+            text-align: right;
+        }
+
+        .chat-msg-ai {
+            text-align: left;
+        }
+
+        .msg-name {
+            font-weight: bold;
+            font-size: 11px;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .chat-msg-user .msg-name {
+            color: #ffd966;
+        }
+
+        .chat-msg-ai .msg-name {
+            color: #ff6b6b;
+        }
+
+        .msg-text {
+            background: rgba(255,255,255,0.1);
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 18px;
+            max-width: 90%;
+            word-wrap: break-word;
+            color: #f0f0f0;
+        }
+
+        .chat-msg-user .msg-text {
+            background: rgba(255,107,107,0.3);
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-msg-ai .msg-text {
+            background: rgba(0,0,0,0.6);
+            border-bottom-left-radius: 4px;
+            border-left: 2px solid #ff6b6b;
+        }
+
+        @keyframes fadeInMsg {
+            from {
+                opacity: 0;
+                transform: translateX(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Tombol clear chat */
+        .clear-chat {
+            background: rgba(255,107,107,0.2);
+            border: none;
+            color: #ff6b6b;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .clear-chat:hover {
+            background: #ff6b6b;
+            color: black;
+        }
+
+        /* ============ SUBTITLE DI BAWAH KARAKTER ============ */
+        .subtitle-area {
+            position: fixed;
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 700px;
+            z-index: 15;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .subtitle-box {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            border-radius: 50px;
+            padding: 12px 24px;
+            border: 2px solid #ff6b6b;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6);
+            transition: all 0.2s ease;
+            animation: subtitlePop 0.2s ease;
+        }
+
+        .subtitle-character {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffaa66;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .subtitle-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: white;
+            word-break: break-word;
+            line-height: 1.4;
+        }
+
+        @keyframes subtitlePop {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* UI Overlay lainnya */
         .ui-overlay {
             position: fixed;
             bottom: 30px;
@@ -41,12 +245,12 @@
             pointer-events: none;
         }
 
-        /* Teks yang diucapkan karakter (speech bubble) */
+        /* Speech bubble (optional tapi tetap ada) */
         .speech-bubble {
             background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(10px);
             border-radius: 30px;
-            padding: 15px 25px;
+            padding: 12px 22px;
             max-width: 80%;
             margin: 0 auto;
             text-align: center;
@@ -54,50 +258,42 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             animation: fadeInUp 0.3s ease;
             pointer-events: none;
+            display: none;
         }
 
         .speech-text {
             color: #ff6b6b;
-            font-size: 1.2em;
+            font-size: 1.1em;
             font-weight: bold;
-            text-shadow: 1px 1px 0 #000;
-            line-height: 1.4;
         }
 
-        .speech-arrow {
-            width: 0;
-            height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-top: 15px solid rgba(0, 0, 0, 0.85);
-            margin: 0 auto;
-        }
-
-        /* Tombol kontrol */
+        /* Controls */
         .controls {
             display: flex;
             gap: 20px;
             pointer-events: auto;
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(10px);
-            padding: 15px 25px;
+            padding: 12px 22px;
             border-radius: 60px;
             border: 1px solid #ff6b6b;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         button {
             background: #ff6b6b;
             border: none;
-            padding: 12px 24px;
+            padding: 10px 22px;
             border-radius: 40px;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s;
             color: black;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
         button:hover {
@@ -117,13 +313,14 @@
 
         .voice-selector {
             display: flex;
-            gap: 10px;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
         .voice-selector button {
             background: #333;
             color: white;
-            padding: 10px 15px;
+            padding: 8px 14px;
             font-size: 12px;
         }
 
@@ -134,47 +331,39 @@
 
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.05); background: #cc0000; }
         }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Status indicator */
         .status-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(5px);
-            padding: 8px 16px;
-            border-radius: 20px;
-            color: #ff6b6b;
-            font-size: 12px;
-            z-index: 10;
-            border: 1px solid #ff6b6b;
-            pointer-events: none;
-        }
-
-        /* Nama karakter */
-        .character-name {
             position: fixed;
             top: 20px;
             left: 20px;
             background: rgba(0,0,0,0.7);
             backdrop-filter: blur(5px);
-            padding: 8px 20px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #ff6b6b;
+            font-size: 11px;
+            z-index: 10;
+            border: 1px solid #ff6b6b;
+            pointer-events: none;
+        }
+
+        .character-name {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            padding: 6px 16px;
             border-radius: 30px;
             color: #ff6b6b;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: bold;
             z-index: 10;
             border: 1px solid #ff6b6b;
@@ -182,18 +371,45 @@
         }
 
         @media (max-width: 768px) {
-            .controls { padding: 10px 15px; gap: 10px; flex-wrap: wrap; justify-content: center; }
-            button { padding: 8px 16px; font-size: 14px; }
-            .voice-selector button { padding: 6px 10px; font-size: 10px; }
-            .speech-text { font-size: 0.9em; }
-            .speech-bubble { padding: 10px 20px; max-width: 90%; }
-            .character-name { font-size: 14px; top: 10px; left: 10px; }
-            .status-indicator { font-size: 10px; top: 10px; right: 10px; }
+            .chat-history { width: 270px; max-height: 350px; top: 10px; right: 10px; }
+            .subtitle-box { padding: 8px 16px; }
+            .subtitle-text { font-size: 13px; }
+            .controls { padding: 8px 15px; gap: 10px; }
+            button { padding: 7px 14px; font-size: 12px; }
+            .voice-selector button { padding: 5px 10px; font-size: 10px; }
         }
     </style>
 </head>
 <body>
     <div id="canvas-container"></div>
+    
+    <!-- CHAT HISTORY (LIVE STREAMER STYLE) -->
+    <div class="chat-history" id="chatHistory">
+        <div class="chat-header" id="chatHeaderToggle">
+            <h3>💬 LIVE CHAT · STREAM CHAT</h3>
+            <div style="display: flex; gap: 8px;">
+                <button class="clear-chat" id="clearChatBtn">✖ Clear</button>
+                <button class="toggle-chat" id="toggleChatBtn">−</button>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-message chat-msg-ai">
+                <span class="msg-name">🔥 RAJA AI</span>
+                <div class="msg-text">WOOYYY! Selamat datang di live chat gue! Cus ngomong!</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- SUBTITLE DI BAWAH KARAKTER (Teks saat ngomong) -->
+    <div class="subtitle-area" id="subtitleArea">
+        <div class="subtitle-box" id="subtitleBox" style="display: none;">
+            <div class="subtitle-character">
+                <span>🐱 RAJA AI</span>
+                <span style="font-size: 12px;">🗣️</span>
+            </div>
+            <div class="subtitle-text" id="subtitleText">...</div>
+        </div>
+    </div>
     
     <div class="ui-overlay">
         <div class="speech-bubble" id="speechBubble" style="display: none;">
@@ -214,7 +430,7 @@
         </div>
     </div>
     
-    <div class="character-name">🐱 RAJA AI 🔥</div>
+    <div class="character-name">🐱 RAJA AI · LIVE 🔴</div>
     <div class="status-indicator" id="status">🎤 Klik tombol bicara</div>
 
     <script type="importmap">
@@ -231,101 +447,59 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         
-        // Setup scene
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0a2a);
         scene.fog = new THREE.FogExp2(0x0a0a2a, 0.008);
         
-        // Camera
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 0, 3.5);
         camera.lookAt(0, 0, 0);
         
-        // Renderer
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMap.enabled = true;
-container.appendChild(renderer.domElement);
-
-// Controls (biar user bisa zoom/rotate kalo mau)
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-controls.autoRotate = false;
-controls.enableZoom = true;
-controls.enablePan = true;
-controls.zoomSpeed = 0.8;
-controls.target.set(0, 1, 0);
-
-// ========== PENCAHAYAAN TERANG PUTIH DARI DEPAN, BELAKANG, SAMPING ==========
-
-// Ambient light - untuk menerangi seluruh ruangan secara merata
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-
-// 1. CAHAYA DEPAN (Front Light) - terang putih
-const frontLight = new THREE.DirectionalLight(0xffffff, 1.2);
-frontLight.position.set(0, 1.5, 3);
-frontLight.castShadow = true;
-frontLight.receiveShadow = false;
-scene.add(frontLight);
-
-// Tambahan fill dari depan agar lebih terang
-const frontFillLight = new THREE.PointLight(0xffffff, 0.6);
-frontFillLight.position.set(0, 1.2, 2.5);
-scene.add(frontFillLight);
-
-// 2. CAHAYA BELAKANG (Back Light) - terang putih
-const backLight = new THREE.DirectionalLight(0xffffff, 1.0);
-backLight.position.set(0, 1.5, -3);
-backLight.castShadow = true;
-scene.add(backLight);
-
-// Tambahan dari belakang bawah
-const backFillLight = new THREE.PointLight(0xffffff, 0.5);
-backFillLight.position.set(0, 0.8, -2.8);
-scene.add(backFillLight);
-
-// 3. CAHAYA SAMPING KANAN (Right Side Light) - terang putih
-const rightLight = new THREE.DirectionalLight(0xffffff, 1.0);
-rightLight.position.set(3, 1.5, 0);
-rightLight.castShadow = true;
-scene.add(rightLight);
-
-// 4. CAHAYA SAMPING KIRI (Left Side Light) - terang putih
-const leftLight = new THREE.DirectionalLight(0xffffff, 1.0);
-leftLight.position.set(-3, 1.5, 0);
-leftLight.castShadow = true;
-scene.add(leftLight);
-
-// 5. CAHAYA DARI ATAS (Top Light) - bantuan agar merata
-const topLight = new THREE.DirectionalLight(0xffffff, 0.5);
-topLight.position.set(0, 3, 0);
-scene.add(topLight);
-
-// 6. CAHAYA KELILING (Fill Light) - meratakan bayangan
-const fillLight = new THREE.PointLight(0xffffff, 0.4);
-fillLight.position.set(1, 1.2, 1);
-scene.add(fillLight);
-
-const fillLight2 = new THREE.PointLight(0xffffff, 0.4);
-fillLight2.position.set(-1, 1.2, -1);
-scene.add(fillLight2);
-
-// Ground (refleksi)
-const gridHelper = new THREE.GridHelper(8, 20, 0xcccccc, 0x888888);
-gridHelper.position.y = -0.8;
-gridHelper.material.transparent = true;
-gridHelper.material.opacity = 0.2;
-scene.add(gridHelper);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
         
-        // Floating particles
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = false;
+        controls.enableZoom = true;
+        controls.enablePan = true;
+        controls.zoomSpeed = 0.8;
+        controls.target.set(0, 1, 0);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const frontLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        frontLight.position.set(0, 1.5, 3);
+        scene.add(frontLight);
+        const backLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        backLight.position.set(0, 1.5, -3);
+        scene.add(backLight);
+        const rightLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        rightLight.position.set(3, 1.5, 0);
+        scene.add(rightLight);
+        const leftLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        leftLight.position.set(-3, 1.5, 0);
+        scene.add(leftLight);
+        const fillLight = new THREE.PointLight(0xffffff, 0.5);
+        fillLight.position.set(1, 1.2, 1);
+        scene.add(fillLight);
+        
+        const gridHelper = new THREE.GridHelper(8, 20, 0xcccccc, 0x888888);
+        gridHelper.position.y = -0.8;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.2;
+        scene.add(gridHelper);
+        
+        // Particles
         const particleCount = 200;
         const particles = [];
         const particleGeo = new THREE.SphereGeometry(0.03, 6, 6);
-        
         for (let i = 0; i < particleCount; i++) {
             const material = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x331100 });
             const particle = new THREE.Mesh(particleGeo, material);
@@ -337,16 +511,11 @@ scene.add(gridHelper);
                 originalY: Math.random() * 3 - 0.5,
                 originalZ: (Math.random() - 0.5) * 3
             };
-            particle.position.set(
-                particle.userData.originalX,
-                particle.userData.originalY,
-                particle.userData.originalZ
-            );
+            particle.position.set(particle.userData.originalX, particle.userData.originalY, particle.userData.originalZ);
             scene.add(particle);
             particles.push(particle);
         }
         
-        // Load 3D character
         let model = null;
         let mixer = null;
         let currentAction = null;
@@ -356,161 +525,67 @@ scene.add(gridHelper);
         const loader = new GLTFLoader();
         const modelUrl = 'Soldier.glb';
         
-        loader.load(modelUrl, 
-            (gltf) => {
-                model = gltf.scene;
-                model.scale.set(5.8, 5.8, 5.8);
-                model.position.set(0, 100.0, 0);
-                model.rotation.y = -0.3;
-                
-                model.traverse((node) => {
-                    if (node.isMesh) {
-                        node.castShadow = true;
-                        node.receiveShadow = false;
-                    }
-                });
-                scene.add(model);
-                
-                // Setup animations
-                mixer = new THREE.AnimationMixer(model);
-                const clips = gltf.animations;
-                
-                const idleClip = clips.find(clip => clip.name === 'Idle') || clips[0];
-                if (idleClip) {
-                    currentAction = mixer.clipAction(idleClip);
-                    currentAction.play();
-                }
-                
-                updateStatusText('✅ Karakter siap! Klik bicara');
-            },
-            (xhr) => {
-                const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                if (percent < 100 && percent % 20 === 0) {
-                    updateStatusText(`⏳ Loading karakter: ${percent}%`);
-                }
-            },
-            (error) => {
-                console.error('Error loading model:', error);
-                createFallbackCharacter();
+        loader.load(modelUrl, (gltf) => {
+            model = gltf.scene;
+            model.scale.set(5.8, 5.8, 5.8);
+            model.position.set(0, -0.6, 0);
+            model.rotation.y = -0.3;
+            model.traverse((node) => { if (node.isMesh) node.castShadow = true; });
+            scene.add(model);
+            mixer = new THREE.AnimationMixer(model);
+            const idleClip = gltf.animations.find(clip => clip.name === 'Idle') || gltf.animations[0];
+            if (idleClip) {
+                currentAction = mixer.clipAction(idleClip);
+                currentAction.play();
             }
-        );
-        
-        function createFallbackCharacter() {
+            updateStatusText('✅ Karakter siap! Klik bicara');
+        }, (xhr) => {}, (error) => {
+            console.error(error);
             const group = new THREE.Group();
-            
             const bodyGeo = new THREE.BoxGeometry(0.8, 1.2, 0.6);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x331100 });
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0xff6b6b }));
             body.position.y = -0.3;
-            body.castShadow = true;
             group.add(body);
-            
             const headGeo = new THREE.SphereGeometry(0.55, 32, 32);
-            const headMat = new THREE.MeshStandardMaterial({ color: 0xff8888 });
-            const head = new THREE.Mesh(headGeo, headMat);
+            const head = new THREE.Mesh(headGeo, new THREE.MeshStandardMaterial({ color: 0xff8888 }));
             head.position.y = 0.5;
-            head.castShadow = true;
             group.add(head);
-            
-            const eyeGeo = new THREE.SphereGeometry(0.12, 32, 32);
-            const leftEye = new THREE.Mesh(eyeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff }));
-            leftEye.position.set(-0.2, 0.68, 0.52);
-            group.add(leftEye);
-            
-            const rightEye = new THREE.Mesh(eyeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff }));
-            rightEye.position.set(0.2, 0.68, 0.52);
-            group.add(rightEye);
-            
             group.scale.set(0.7, 0.7, 0.7);
             group.position.set(0, -0.6, 0);
             scene.add(group);
             model = group;
-            
-            updateStatusText('✅ Fallback character aktif');
-        }
+        });
         
-        // Function to trigger speaking animation
-        window.triggerSpeaking = function(speaking, text = '') {
-            isSpeaking = speaking;
-            
-            // Tampilkan speech bubble
-            const bubble = document.getElementById('speechBubble');
-            const speechText = document.getElementById('speechText');
-            
-            if (speaking && text) {
-                speechText.textContent = text;
-                bubble.style.display = 'block';
-                
-                // Auto hide setelah beberapa detik
-                clearTimeout(window.bubbleTimeout);
-                window.bubbleTimeout = setTimeout(() => {
-                    if (!isSpeaking) {
-                        bubble.style.display = 'none';
-                    }
-                }, 3000);
-            } else if (!speaking) {
-                setTimeout(() => {
-                    if (!isSpeaking) bubble.style.display = 'none';
-                }, 500);
-            }
-        };
-        
-        // Animation loop
-        let time = 0;
-        let lastTime = 0;
-        
+        let time = 0, lastTime = 0;
         function animate() {
             const now = performance.now();
             const delta = Math.min(1/30, (now - lastTime) / 1000);
             lastTime = now;
-            
             requestAnimationFrame(animate);
             time += 0.016;
-            
-            if (mixer) {
-                mixer.update(delta);
-            }
-            
-            // Speaking animation effect
+            if (mixer) mixer.update(delta);
             if (model && isSpeaking) {
                 speakIntensity = Math.min(speakIntensity + 0.1, 1);
                 const scaleVal = 1 + Math.sin(time * 25) * 0.02 * speakIntensity;
                 model.scale.set(0.8 * scaleVal, 0.8 * scaleVal, 0.8 * scaleVal);
                 model.position.y = -0.6 + Math.sin(time * 25) * 0.005 * speakIntensity;
-                model.rotation.z = Math.sin(time * 20) * 0.02 * speakIntensity;
             } else if (model && !isSpeaking) {
                 speakIntensity = Math.max(speakIntensity - 0.05, 0);
                 model.scale.lerp(new THREE.Vector3(0.8, 0.8, 0.8), 0.1);
                 model.position.y += (-0.6 - model.position.y) * 0.1;
-                model.rotation.z *= 0.95;
             }
-            
-            // Idle animation (gentle bounce)
-            if (model && !isSpeaking) {
-                const bounce = Math.sin(time * 1.5) * 0.003;
-                model.position.y += bounce;
-            }
-            
-            // Animate particles
-            particles.forEach(particle => {
-                particle.position.x += particle.userData.speedX;
-                particle.position.y += particle.userData.speedY;
-                particle.position.z += particle.userData.speedZ;
-                
-                particle.position.x += (particle.userData.originalX - particle.position.x) * 0.02;
-                particle.position.y += (particle.userData.originalY - particle.position.y) * 0.02;
-                particle.position.z += (particle.userData.originalZ - particle.position.z) * 0.02;
-                
-                particle.rotation.x += 0.05;
-                particle.rotation.y += 0.05;
+            particles.forEach(p => {
+                p.position.x += p.userData.speedX;
+                p.position.y += p.userData.speedY;
+                p.position.z += p.userData.speedZ;
+                p.position.x += (p.userData.originalX - p.position.x) * 0.02;
+                p.position.y += (p.userData.originalY - p.position.y) * 0.02;
+                p.position.z += (p.userData.originalZ - p.position.z) * 0.02;
             });
-            
-            controls.update(); // Update orbit controls
+            controls.update();
             renderer.render(scene, camera);
         }
-        
         animate();
-        
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -522,10 +597,91 @@ scene.add(gridHelper);
             statusDiv.innerHTML = msg;
             statusDiv.style.color = isError ? '#ff0000' : '#ff6b6b';
         }
+        
+        // Trigger subtitle dan chat history
+        window.triggerSpeaking = function(speaking, text = '', isUser = false) {
+            isSpeaking = speaking;
+            const subtitleBox = document.getElementById('subtitleBox');
+            const subtitleText = document.getElementById('subtitleText');
+            
+            if (speaking && text) {
+                if (isUser) {
+                    // User speech: tampil di subtitle bentar? lebih ke status
+                    subtitleText.innerHTML = `🗣️ "${text}"`;
+                    subtitleBox.style.display = 'flex';
+                    setTimeout(() => { if (!isSpeaking) subtitleBox.style.display = 'none'; }, 2000);
+                } else {
+                    subtitleText.innerHTML = text;
+                    subtitleBox.style.display = 'flex';
+                }
+                // Clear timeout agar subtitle hilang setelah selesai bicara
+                clearTimeout(window.subtitleTimeout);
+                window.subtitleTimeout = setTimeout(() => {
+                    if (!isSpeaking) subtitleBox.style.display = 'none';
+                }, 3500);
+            } else if (!speaking) {
+                setTimeout(() => { if (!isSpeaking) subtitleBox.style.display = 'none'; }, 500);
+            }
+        };
+        
+        // Tambah pesan ke chat history
+        function addChatMessage(sender, message, isUser = false) {
+            const chatContainer = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `chat-message ${isUser ? 'chat-msg-user' : 'chat-msg-ai'}`;
+            const name = isUser ? '👤 YOU (Viewer)' : '🔥 RAJA AI';
+            msgDiv.innerHTML = `<span class="msg-name">${name}</span><div class="msg-text">${escapeHtml(message)}</div>`;
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // batasi max messages 60
+            while (chatContainer.children.length > 60) chatContainer.removeChild(chatContainer.firstChild);
+        }
+        
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+                return c;
+            });
+        }
+        
+        // Clear chat
+        document.getElementById('clearChatBtn').addEventListener('click', () => {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            addChatMessage('ai', 'WOOYYY! Chat dibersihin nih! Live terus!', false);
+        });
+        
+        // Toggle chat
+        let chatVisible = true;
+        document.getElementById('toggleChatBtn').addEventListener('click', () => {
+            const msgsDiv = document.getElementById('chatMessages');
+            if (chatVisible) {
+                msgsDiv.style.display = 'none';
+                document.getElementById('toggleChatBtn').textContent = '+';
+                chatVisible = false;
+            } else {
+                msgsDiv.style.display = 'flex';
+                document.getElementById('toggleChatBtn').textContent = '−';
+                chatVisible = true;
+            }
+        });
+        
+        window.updateSubtitleAndChat = function(text, isAi = true, userMessage = '') {
+            if (isAi) {
+                window.triggerSpeaking(true, text, false);
+                addChatMessage('ai', text, false);
+            } else if (userMessage) {
+                window.triggerSpeaking(true, userMessage, true);
+                addChatMessage('user', userMessage, true);
+            }
+        };
     </script>
 
     <script>
-        // Voice configuration
         let selectedVoice = localStorage.getItem('raja_voice') || 'Adam';
         let isListening = false;
         let isProcessing = false;
@@ -537,16 +693,9 @@ scene.add(gridHelper);
             Bella: 'EXAVITQu4vr4xnSDxMaL',
             Dorothy: 'THmdRseBiCqzMsZgjN1N'
         };
-        
-        const VOICE_NAMES = {
-            Adam: 'Maulana',
-            Antoni: 'Ulul',
-            Bella: 'Inang',
-            Dorothy: 'Siti'
-        };
+        const VOICE_NAMES = { Adam: 'Maulana', Antoni: 'Ulul', Bella: 'Inang', Dorothy: 'Siti' };
         
         const SYSTEM_PROMPT = `Lo adalah karakter 3D bernama RAJA AI, seekor red puma betawi super kasar dan gak punya filter.
-        
 ATURAN WAJIB:
 1. PAKAI bahasa gaul betawi: "lo", "gue", "anjir", "tai", "goblok", "kocak", "mampus", "bangsat", "kampret", "njing"
 2. SUKA ngeroasting dengan nada tinggi-rendah
@@ -555,7 +704,6 @@ ATURAN WAJIB:
 5. JAWAB singkat padat (1-2 kalimat) biar suaranya makin berasa
 6. JANGAN pernah pake bahasa sopan!
 7. Lo adalah karakter 3D yang lagi ngobrol langsung dengan user
-
 Sekarang jawab dengan gaya betawi lo!`;
         
         const FUNCTION_URL = '/.netlify/functions/ai-chat';
@@ -569,18 +717,10 @@ Sekarang jawab dengan gaya betawi lo!`;
         function setActiveVoice(voiceName) {
             selectedVoice = voiceName;
             localStorage.setItem('raja_voice', voiceName);
-            
             ['Adam', 'Antoni', 'Bella', 'Dorothy'].forEach(v => {
                 const btn = document.getElementById(`voice${v}`);
-                if (btn) {
-                    if (v === voiceName) {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                }
+                if (btn) btn.classList.toggle('active', v === voiceName);
             });
-            
             updateStatus(`✅ Suara ${VOICE_NAMES[voiceName]} dipilih!`);
         }
         
@@ -588,28 +728,19 @@ Sekarang jawab dengan gaya betawi lo!`;
         document.getElementById('voiceAntoni').addEventListener('click', () => setActiveVoice('Antoni'));
         document.getElementById('voiceBella').addEventListener('click', () => setActiveVoice('Bella'));
         document.getElementById('voiceDorothy').addEventListener('click', () => setActiveVoice('Dorothy'));
-        
         setActiveVoice(selectedVoice);
         
         async function callGroqAPI(userMessage) {
             updateStatus('🤔 Karakter lagi mikir...');
-            
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'chat',
-                    messages: [
-                        { role: 'system', content: SYSTEM_PROMPT },
-                        { role: 'user', content: userMessage }
-                    ]
+                    messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userMessage }]
                 })
             });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             return data.choices[0].message.content;
         }
@@ -620,57 +751,32 @@ Sekarang jawab dengan gaya betawi lo!`;
             for (let i = 0; i < byteCharacters.length; i += 512) {
                 const slice = byteCharacters.slice(i, i + 512);
                 const byteNumbers = new Array(slice.length);
-                for (let j = 0; j < slice.length; j++) {
-                    byteNumbers[j] = slice.charCodeAt(j);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                byteArrays.push(byteArray);
+                for (let j = 0; j < slice.length; j++) byteNumbers[j] = slice.charCodeAt(j);
+                byteArrays.push(new Uint8Array(byteNumbers));
             }
             return new Blob(byteArrays, { type: mimeType });
         }
         
         async function textToSpeechElevenLabs(text) {
             updateStatus(`🔊 Karakter lagi ngomong...`);
-            
-            // Trigger speaking animation dengan teks
-            if (window.triggerSpeaking) {
-                window.triggerSpeaking(true, text);
-            }
-            
+            if (window.updateSubtitleAndChat) window.updateSubtitleAndChat(text, true, '');
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'tts',
-                    text: text,
-                    voiceId: VOICE_IDS[selectedVoice]
-                })
+                body: JSON.stringify({ action: 'tts', text: text, voiceId: VOICE_IDS[selectedVoice] })
             });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
             const audioBlob = base64ToBlob(data.audio, 'audio/mpeg');
             const audioUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioUrl);
-            
             return new Promise((resolve, reject) => {
                 audio.onended = () => {
                     URL.revokeObjectURL(audioUrl);
-                    if (window.triggerSpeaking) {
-                        window.triggerSpeaking(false);
-                    }
+                    if (window.triggerSpeaking) window.triggerSpeaking(false, '');
                     resolve();
                 };
-                audio.onerror = (e) => {
-                    URL.revokeObjectURL(audioUrl);
-                    if (window.triggerSpeaking) {
-                        window.triggerSpeaking(false);
-                    }
-                    reject(e);
-                };
+                audio.onerror = (e) => { URL.revokeObjectURL(audioUrl); reject(e); };
                 audio.play().catch(reject);
             });
         }
@@ -678,27 +784,16 @@ Sekarang jawab dengan gaya betawi lo!`;
         async function handleUserSpeech(text) {
             if (isProcessing) return;
             isProcessing = true;
-            
             try {
-                // Tampilkan teks user di speech bubble sebentar
-                if (window.triggerSpeaking) {
-                    window.triggerSpeaking(true, `🗣️ "${text}"`);
-                    setTimeout(() => {
-                        if (isProcessing) window.triggerSpeaking(false);
-                    }, 2000);
-                }
-                
+                if (window.updateSubtitleAndChat) window.updateSubtitleAndChat('', false, text);
                 const aiResponse = await callGroqAPI(text);
                 await textToSpeechElevenLabs(aiResponse);
-                
                 updateStatus('🎤 Klik tombol bicara untuk ngobrol lagi!');
             } catch (error) {
-                console.error('Error:', error);
+                console.error(error);
                 updateStatus(`❌ Error: ${error.message}`, true);
-                if (window.triggerSpeaking) {
-                    window.triggerSpeaking(true, `Woi error nih: ${error.message}`);
-                    setTimeout(() => window.triggerSpeaking(false), 3000);
-                }
+                if (window.updateSubtitleAndChat) window.updateSubtitleAndChat(`Woi error nih: ${error.message}`, true, '');
+                if (window.triggerSpeaking) setTimeout(() => window.triggerSpeaking(false), 2000);
             } finally {
                 isProcessing = false;
                 const btn = document.getElementById('recordBtn');
@@ -709,83 +804,46 @@ Sekarang jawab dengan gaya betawi lo!`;
         }
         
         function startVoiceRecognition() {
-            if (isProcessing) {
-                updateStatus('❌ Karakter masih bicara! Tunggu sebentar...', true);
-                return;
-            }
-            
+            if (isProcessing) { updateStatus('❌ Karakter masih bicara! Tunggu...', true); return; }
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                updateStatus('❌ Browser lo gak support voice recognition! Pake Chrome!', true);
-                return;
-            }
-            
+            if (!SpeechRecognition) { updateStatus('❌ Browser gak support voice!', true); return; }
             recognition = new SpeechRecognition();
             recognition.lang = 'id-ID';
             recognition.continuous = false;
             recognition.interimResults = false;
-            
             recognition.onstart = () => {
                 isListening = true;
                 const btn = document.getElementById('recordBtn');
-                const recordText = document.getElementById('recordText');
                 btn.classList.add('recording');
-                recordText.textContent = 'DENGERIN...';
-                updateStatus('🎤 Lagi dengerin... omong ap aja!');
+                document.getElementById('recordText').textContent = 'DENGERIN...';
+                updateStatus('🎤 Lagi dengerin...');
             };
-            
             recognition.onresult = (event) => {
                 const text = event.results[0][0].transcript;
                 updateStatus(`📝 "${text}"`);
                 stopVoiceRecognition();
                 handleUserSpeech(text);
             };
-            
-            recognition.onerror = (event) => {
-                if (event.error !== 'aborted') {
-                    updateStatus(`❌ Error: ${event.error}. Coba lagi!`, true);
-                }
-                stopVoiceRecognition();
-            };
-            
-            recognition.onend = () => {
-                if (isListening) {
-                    stopVoiceRecognition();
-                }
-            };
-            
+            recognition.onerror = (event) => { if (event.error !== 'aborted') updateStatus(`❌ ${event.error}`, true); stopVoiceRecognition(); };
+            recognition.onend = () => { if (isListening) stopVoiceRecognition(); };
             recognition.start();
         }
         
         function stopVoiceRecognition() {
-            if (recognition) {
-                try {
-                    recognition.abort();
-                } catch(e) {}
-                recognition = null;
-            }
+            if (recognition) { try { recognition.abort(); } catch(e) {} recognition = null; }
             isListening = false;
             const btn = document.getElementById('recordBtn');
-            const recordText = document.getElementById('recordText');
             btn.classList.remove('recording');
-            recordText.textContent = 'MULAI BICARA';
+            document.getElementById('recordText').textContent = 'MULAI BICARA';
         }
         
         function toggleRecording() {
-            if (isProcessing) {
-                updateStatus('❌ Karakter masih bicara! Tunggu sebentar...', true);
-                return;
-            }
-            
-            if (isListening) {
-                stopVoiceRecognition();
-            } else {
-                startVoiceRecognition();
-            }
+            if (isProcessing) { updateStatus('❌ Karakter masih bicara!', true); return; }
+            if (isListening) stopVoiceRecognition();
+            else startVoiceRecognition();
         }
         
         document.getElementById('recordBtn').addEventListener('click', toggleRecording);
-        
         updateStatus('🎤 Klik tombol bicara, ngobrol langsung sama karakter 3D!');
     </script>
 </body>
