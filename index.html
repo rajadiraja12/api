@@ -3,73 +3,219 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>RAJA AI - 3D Soldier Animation</title>
+    <title>RAJA AI - Talking 3D Character</title>
     <style>
-        /* --- styles (sama seperti kode kamu sebelumnya) --- */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%); min-height: 100vh; display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 30px; padding: 20px; flex-wrap: wrap; }
-        #canvas-container { width: 400px; height: 550px; border-radius: 30px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 3px solid #ff6b6b; background: #050510; z-index: 1; transition: transform 0.3s ease; }
-        #canvas-container:hover { transform: scale(1.02); }
-        .container { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); border-radius: 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); max-width: 550px; width: 100%; padding: 25px; text-align: center; border: 1px solid #ff6b6b; z-index: 2; }
-        h1 { color: #ff6b6b; margin-bottom: 10px; font-size: 1.8em; text-shadow: 2px 2px 0 #000; }
-        .badge { background: #ff6b6b; color: black; padding: 5px 15px; border-radius: 20px; display: inline-block; margin-bottom: 15px; font-weight: bold; font-size: 12px; }
-        .chat-area { background: #1a1a1a; border-radius: 20px; padding: 15px; height: 350px; overflow-y: auto; margin-bottom: 15px; text-align: left; }
-        .message { margin-bottom: 12px; display: flex; flex-direction: column; }
-        .user-message { align-items: flex-end; }
-        .ai-message { align-items: flex-start; }
-        .message-bubble { max-width: 85%; padding: 8px 12px; border-radius: 18px; margin: 3px 0; word-wrap: break-word; font-size: 14px; }
-        .user-message .message-bubble { background: #4ecdc4; color: black; border-bottom-right-radius: 5px; }
-        .ai-message .message-bubble { background: #2d2d2d; color: #ff6b6b; border-bottom-left-radius: 5px; border: 1px solid #ff6b6b; }
-        .message-label { font-size: 0.7em; color: #999; margin-bottom: 2px; font-weight: bold; }
-        .voice-controls { display: flex; gap: 10px; margin-bottom: 15px; }
-        button { flex: 1; padding: 12px; font-size: 14px; font-weight: bold; border: none; border-radius: 15px; cursor: pointer; transition: all 0.3s; }
-        .btn-record { background: #ff6b6b; color: black; }
-        .btn-record.recording { background: #ff0000; animation: pulse 1s infinite; color: white; }
-        .btn-clear { background: #4ecdc4; color: black; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-        button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,107,107,0.3); }
-        .status { margin-top: 15px; padding: 10px; border-radius: 10px; background: #2d2d2d; font-size: 0.85em; color: #ff6b6b; font-weight: 500; border: 1px solid #ff6b6b; }
-        .voice-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 15px; }
-        .voice-selector button { flex: 1; background: #333; color: white; padding: 6px; font-size: 10px; min-width: 70px; }
-        .voice-selector button.active { background: #ff6b6b; color: black; }
-        .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top: 2px solid #ff6b6b; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        small { color: #999; font-size: 10px; }
-        .char-info { position: fixed; bottom: 15px; left: 20px; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 10px; color: #ff6b6b; font-size: 10px; z-index: 3; pointer-events: none; }
-        @media (max-width: 950px) { body { flex-direction: column; gap: 20px; } #canvas-container { width: 350px; height: 400px; order: -1; } .container { max-width: 450px; padding: 20px; } .chat-area { height: 300px; } }
-        @media (max-width: 500px) { #canvas-container { width: 280px; height: 350px; } .container { max-width: 95%; padding: 15px; } }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+
+        /* Fullscreen 3D Canvas */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* UI Overlay - Minimalis */
+        .ui-overlay {
+            position: fixed;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            pointer-events: none;
+        }
+
+        /* Teks yang diucapkan karakter (speech bubble) */
+        .speech-bubble {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 15px 25px;
+            max-width: 80%;
+            margin: 0 auto;
+            text-align: center;
+            border: 2px solid #ff6b6b;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: fadeInUp 0.3s ease;
+            pointer-events: none;
+        }
+
+        .speech-text {
+            color: #ff6b6b;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-shadow: 1px 1px 0 #000;
+            line-height: 1.4;
+        }
+
+        .speech-arrow {
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 15px solid rgba(0, 0, 0, 0.85);
+            margin: 0 auto;
+        }
+
+        /* Tombol kontrol */
+        .controls {
+            display: flex;
+            gap: 20px;
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 60px;
+            border: 1px solid #ff6b6b;
+        }
+
+        button {
+            background: #ff6b6b;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 40px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: black;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(255,107,107,0.5);
+        }
+
+        .btn-record {
+            background: #ff6b6b;
+        }
+
+        .btn-record.recording {
+            background: #ff0000;
+            animation: pulse 1s infinite;
+            color: white;
+        }
+
+        .voice-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .voice-selector button {
+            background: #333;
+            color: white;
+            padding: 10px 15px;
+            font-size: 12px;
+        }
+
+        .voice-selector button.active {
+            background: #ff6b6b;
+            color: black;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Status indicator */
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: #ff6b6b;
+            font-size: 12px;
+            z-index: 10;
+            border: 1px solid #ff6b6b;
+            pointer-events: none;
+        }
+
+        /* Nama karakter */
+        .character-name {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            padding: 8px 20px;
+            border-radius: 30px;
+            color: #ff6b6b;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 10;
+            border: 1px solid #ff6b6b;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .controls { padding: 10px 15px; gap: 10px; flex-wrap: wrap; justify-content: center; }
+            button { padding: 8px 16px; font-size: 14px; }
+            .voice-selector button { padding: 6px 10px; font-size: 10px; }
+            .speech-text { font-size: 0.9em; }
+            .speech-bubble { padding: 10px 20px; max-width: 90%; }
+            .character-name { font-size: 14px; top: 10px; left: 10px; }
+            .status-indicator { font-size: 10px; top: 10px; right: 10px; }
+        }
     </style>
 </head>
 <body>
     <div id="canvas-container"></div>
-    <div class="char-info">⚔️ 3D Soldier | 🎤 Click mic to speak</div>
     
-    <div class="container">
-        <h1>🐱 RAJA AI <span style="font-size: 0.6em;">🔥 3D SOLDIER</span></h1>
-        <div class="badge">KLIK SEKALI MULAI REKAM - PRAJURIT SIAP BERTINDAK!</div>
-
-        <div class="voice-selector">
-            <button id="voiceAdam" class="active">🗣️ MAULANA</button>
-            <button id="voiceAntoni">🎭 ULUL</button>
-            <button id="voiceBella">💁 INANG</button>
-            <button id="voiceDorothy">🔥 SITI</button>
+    <div class="ui-overlay">
+        <div class="speech-bubble" id="speechBubble" style="display: none;">
+            <div class="speech-text" id="speechText">...</div>
+            <div class="speech-arrow"></div>
         </div>
-
-        <div class="chat-area" id="chatArea">
-            <div class="message ai-message">
-                <div class="message-label">🐱 RAJA AI:</div>
-                <div class="message-bubble">WOOYYY! Sekarang pake model prajurit 3D, coba liat gerakannya! COBAIN GOBLOK! 🔥🐱⚔️</div>
+        
+        <div class="controls">
+            <button class="btn-record" id="recordBtn">
+                🎤 <span id="recordText">MULAI BICARA</span>
+            </button>
+            <div class="voice-selector">
+                <button id="voiceAdam" class="active">🗣️ MAULANA</button>
+                <button id="voiceAntoni">🎭 ULUL</button>
+                <button id="voiceBella">💁 INANG</button>
+                <button id="voiceDorothy">🔥 SITI</button>
             </div>
         </div>
-
-        <div class="voice-controls">
-            <button class="btn-record" id="recordBtn">🎤 MULAI REKAM</button>
-            <button class="btn-clear" id="clearBtn">🗑️ BERSIHIN CHAT</button>
-        </div>
-
-        <div class="status" id="status">⚙️ Loading 3D Soldier...</div>
-        <small>🔒 API key aman | ⚔️ Soldier with Idle Animation</small>
     </div>
+    
+    <div class="character-name">🐱 RAJA AI 🔥</div>
+    <div class="status-indicator" id="status">🎤 Klik tombol bicara</div>
 
     <script type="importmap">
         {
@@ -83,101 +229,107 @@
     <script type="module">
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         
-        // --- Setup Scene ---
+        // Setup scene
         const container = document.getElementById('canvas-container');
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050510);
-        scene.fog = new THREE.FogExp2(0x050510, 0.02);
-
-        // --- KAMERA: Diatur agar model tidak nempel ---
-        // PENTING: Posisi Z = 4.5, Y = 1.5 agar soldier keliatan full
-        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-        camera.position.set(2, 1.5, 1.5);
-        camera.lookAt(0, 0, 0);
-
-        // --- Renderer ---
+        scene.background = new THREE.Color(0x0a0a2a);
+        scene.fog = new THREE.FogExp2(0x0a0a2a, 0.008);
+        
+        // Camera
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.2, 3.5);
+        camera.lookAt(0, 1, 0);
+        
+        // Renderer
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.shadowMap.enabled = true;
         container.appendChild(renderer.domElement);
-
-        // --- Lighting (optimal untuk Soldier) ---
-        const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+        
+        // Controls (biar user bisa zoom/rotate kalo mau)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = false;
+        controls.enableZoom = true;
+        controls.enablePan = false;
+        controls.zoomSpeed = 0.8;
+        controls.target.set(0, 1, 0);
+        
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
         scene.add(ambientLight);
-        const mainLight = new THREE.DirectionalLight(0xffaa88, 1.2);
+        
+        const mainLight = new THREE.DirectionalLight(0xffaa88, 1);
         mainLight.position.set(2, 3, 2);
         mainLight.castShadow = true;
+        mainLight.receiveShadow = true;
         scene.add(mainLight);
+        
         const fillLight = new THREE.PointLight(0x4ecdc4, 0.4);
         fillLight.position.set(-1, 1.5, 2);
         scene.add(fillLight);
-        const rimLight = new THREE.PointLight(0xff8888, 0.6);
-        rimLight.position.set(0, 1.5, -2.5);
+        
+        const rimLight = new THREE.PointLight(0xff6b6b, 0.6);
+        rimLight.position.set(0, 1.5, -2);
         scene.add(rimLight);
         
-        // Grid lantai biar keliatan posisi
+        const backLight = new THREE.PointLight(0x335588, 0.3);
+        backLight.position.set(0, 1, -3);
+        scene.add(backLight);
+        
+        // Ground (refleksi)
         const gridHelper = new THREE.GridHelper(8, 20, 0xff6b6b, 0x335588);
-        gridHelper.position.y = -0.9;
+        gridHelper.position.y = -0.8;
         gridHelper.material.transparent = true;
-        gridHelper.material.opacity = 0.3;
+        gridHelper.material.opacity = 0.2;
         scene.add(gridHelper);
-
-        // --- Stars Background ---
-        const starGeometry = new THREE.BufferGeometry();
-        const starCount = 1000;
-        const starPositions = new Float32Array(starCount * 3);
-        for (let i = 0; i < starCount; i++) {
-            starPositions[i*3] = (Math.random() - 0.5) * 200;
-            starPositions[i*3+1] = (Math.random() - 0.5) * 100;
-            starPositions[i*3+2] = (Math.random() - 0.5) * 80 - 40;
-        }
-        starGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-        const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0.5 }));
-        scene.add(stars);
-
-        // --- Particles ---
-        const particleCount = 150;
+        
+        // Floating particles
+        const particleCount = 200;
         const particles = [];
+        const particleGeo = new THREE.SphereGeometry(0.03, 6, 6);
+        
         for (let i = 0; i < particleCount; i++) {
-            const particle = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x331100 }));
+            const material = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x331100 });
+            const particle = new THREE.Mesh(particleGeo, material);
             particle.userData = {
-                speedX: (Math.random() - 0.5) * 0.003,
-                speedY: (Math.random() - 0.5) * 0.003,
-                speedZ: (Math.random() - 0.5) * 0.003,
+                speedX: (Math.random() - 0.5) * 0.002,
+                speedY: (Math.random() - 0.5) * 0.002,
+                speedZ: (Math.random() - 0.5) * 0.002,
                 originalX: (Math.random() - 0.5) * 4,
-                originalY: Math.random() * 2 - 0.5,
+                originalY: Math.random() * 3 - 0.5,
                 originalZ: (Math.random() - 0.5) * 3
             };
-            particle.position.set(particle.userData.originalX, particle.userData.originalY, particle.userData.originalZ);
+            particle.position.set(
+                particle.userData.originalX,
+                particle.userData.originalY,
+                particle.userData.originalZ
+            );
             scene.add(particle);
             particles.push(particle);
         }
-
-        // --- 3D Model: Soldier with Animation ---
+        
+        // Load 3D character
         let model = null;
         let mixer = null;
-        let isSpeaking = false;
         let currentAction = null;
-
+        let isSpeaking = false;
+        let speakIntensity = 0;
+        
         const loader = new GLTFLoader();
-        // MENGgunakan model Soldier dari repo resmi Three.js
-        const modelUrl = 'https://threejs.org/examples/models/gltf/Soldier.glb';
+        const modelUrl = 'Soldier.gltf';
         
         loader.load(modelUrl, 
             (gltf) => {
                 model = gltf.scene;
+                model.scale.set(5.8, 5.8, 5.8);
+                model.position.set(0, -0.6, 0);
+                model.rotation.y = -0.3;
                 
-                // **PERBAIKAN UTAMA: Ukuran dan Posisi**
-                // Diperkecil dari ukuran default (scale 1 terlalu besar)
-                model.scale.set(5.20, 5.20, 5.20);
-                // Diposisikan di tengah dan sedikit ke bawah
-                model.position.set(0, -0.7, 0);
-                // Rotasi sedikit agar menghadap ke kamera dengan lebih baik
-                model.rotation.y = -2.30;
-                
-                // Enable shadow
                 model.traverse((node) => {
                     if (node.isMesh) {
                         node.castShadow = true;
@@ -186,31 +338,22 @@
                 });
                 scene.add(model);
                 
-                // --- ANIMATION SETUP ---
-                // Soldier.glb memiliki beberapa animasi: TPose, Idle, Walk, Run [citation:6]
+                // Setup animations
                 mixer = new THREE.AnimationMixer(model);
                 const clips = gltf.animations;
                 
-                console.log('Available animations:', clips.map(c => c.name));
-                
-                // Cari animasi 'Idle' (diam), kalo ga ada pake yang pertama
-                let idleClip = clips.find(clip => clip.name === 'Idle');
-                if (!idleClip) idleClip = clips[0]; // Fallback
-                
+                const idleClip = clips.find(clip => clip.name === 'Idle') || clips[0];
                 if (idleClip) {
                     currentAction = mixer.clipAction(idleClip);
                     currentAction.play();
-                    console.log('Playing animation:', idleClip.name);
                 }
                 
-                const statusDiv = document.getElementById('status');
-                if (statusDiv) statusDiv.innerHTML = '✅ Prajurit 3D siap! (Animasi Idle Aktif)';
+                updateStatusText('✅ Karakter siap! Klik bicara');
             },
             (xhr) => {
                 const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                if (percent % 20 === 0) {
-                    const statusDiv = document.getElementById('status');
-                    if (statusDiv && percent < 100) statusDiv.innerHTML = `⏳ Loading Soldier: ${percent}%...`;
+                if (percent < 100 && percent % 20 === 0) {
+                    updateStatusText(`⏳ Loading karakter: ${percent}%`);
                 }
             },
             (error) => {
@@ -219,9 +362,9 @@
             }
         );
         
-        // Fallback jika model gagal load
         function createFallbackCharacter() {
             const group = new THREE.Group();
+            
             const bodyGeo = new THREE.BoxGeometry(0.8, 1.2, 0.6);
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0x331100 });
             const body = new THREE.Mesh(bodyGeo, bodyMat);
@@ -236,21 +379,50 @@
             head.castShadow = true;
             group.add(head);
             
+            const eyeGeo = new THREE.SphereGeometry(0.12, 32, 32);
+            const leftEye = new THREE.Mesh(eyeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff }));
+            leftEye.position.set(-0.2, 0.68, 0.52);
+            group.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeo, new THREE.MeshStandardMaterial({ color: 0xffffff }));
+            rightEye.position.set(0.2, 0.68, 0.52);
+            group.add(rightEye);
+            
             group.scale.set(0.7, 0.7, 0.7);
-            group.position.set(0, -0.7, 0);
+            group.position.set(0, -0.6, 0);
             scene.add(group);
             model = group;
             
-            const statusDiv = document.getElementById('status');
-            if (statusDiv) statusDiv.innerHTML = '⚠️ Fallback character aktif (Soldier gagal load)';
+            updateStatusText('✅ Fallback character aktif');
         }
-
-        // --- Speaking Animation (Efek bicara) ---
-        window.animateSpeaking = function(speaking) {
+        
+        // Function to trigger speaking animation
+        window.triggerSpeaking = function(speaking, text = '') {
             isSpeaking = speaking;
+            
+            // Tampilkan speech bubble
+            const bubble = document.getElementById('speechBubble');
+            const speechText = document.getElementById('speechText');
+            
+            if (speaking && text) {
+                speechText.textContent = text;
+                bubble.style.display = 'block';
+                
+                // Auto hide setelah beberapa detik
+                clearTimeout(window.bubbleTimeout);
+                window.bubbleTimeout = setTimeout(() => {
+                    if (!isSpeaking) {
+                        bubble.style.display = 'none';
+                    }
+                }, 3000);
+            } else if (!speaking) {
+                setTimeout(() => {
+                    if (!isSpeaking) bubble.style.display = 'none';
+                }, 500);
+            }
         };
         
-        // --- Animation Loop ---
+        // Animation loop
         let time = 0;
         let lastTime = 0;
         
@@ -262,55 +434,69 @@
             requestAnimationFrame(animate);
             time += 0.016;
             
-            // Update mixer untuk animasi model
             if (mixer) {
                 mixer.update(delta);
             }
             
-            // Efek "bicara": sedikit scale dan gerakan saat AI berbicara
+            // Speaking animation effect
             if (model && isSpeaking) {
-                const scaleVal = 1 + Math.sin(time * 25) * 0.01;
-                // Simpan scale asli (0.8) lalu kalikan dengan efek
+                speakIntensity = Math.min(speakIntensity + 0.1, 1);
+                const scaleVal = 1 + Math.sin(time * 25) * 0.02 * speakIntensity;
                 model.scale.set(0.8 * scaleVal, 0.8 * scaleVal, 0.8 * scaleVal);
-                model.position.y = -0.7 + Math.sin(time * 25) * 0.005;
-            } else if (model && !isSpeaking && Math.abs(model.scale.x - 0.8) > 0.01) {
-                // Kembalikan ke scale asli secara smooth
+                model.position.y = -0.6 + Math.sin(time * 25) * 0.005 * speakIntensity;
+                model.rotation.z = Math.sin(time * 20) * 0.02 * speakIntensity;
+            } else if (model && !isSpeaking) {
+                speakIntensity = Math.max(speakIntensity - 0.05, 0);
                 model.scale.lerp(new THREE.Vector3(0.8, 0.8, 0.8), 0.1);
-                model.position.y += (-0.7 - model.position.y) * 0.1;
+                model.position.y += (-0.6 - model.position.y) * 0.1;
+                model.rotation.z *= 0.95;
             }
             
-            // Animasi stars dan particles
-            stars.rotation.y += 0.0005;
-            stars.rotation.x += 0.0003;
+            // Idle animation (gentle bounce)
+            if (model && !isSpeaking) {
+                const bounce = Math.sin(time * 1.5) * 0.003;
+                model.position.y += bounce;
+            }
+            
+            // Animate particles
             particles.forEach(particle => {
                 particle.position.x += particle.userData.speedX;
                 particle.position.y += particle.userData.speedY;
                 particle.position.z += particle.userData.speedZ;
+                
                 particle.position.x += (particle.userData.originalX - particle.position.x) * 0.02;
                 particle.position.y += (particle.userData.originalY - particle.position.y) * 0.02;
                 particle.position.z += (particle.userData.originalZ - particle.position.z) * 0.02;
+                
                 particle.rotation.x += 0.05;
                 particle.rotation.y += 0.05;
             });
             
+            controls.update(); // Update orbit controls
             renderer.render(scene, camera);
         }
         
         animate();
         
-        // Handle resize
         window.addEventListener('resize', () => {
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            renderer.setSize(width, height);
-            camera.aspect = width / height;
+            camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
+        
+        function updateStatusText(msg, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = msg;
+            statusDiv.style.color = isError ? '#ff0000' : '#ff6b6b';
+        }
     </script>
 
     <script>
-        // --- Voice Configuration (sama seperti kode kamu sebelumnya) ---
+        // Voice configuration
         let selectedVoice = localStorage.getItem('raja_voice') || 'Adam';
+        let isListening = false;
+        let isProcessing = false;
+        let recognition = null;
         
         const VOICE_IDS = {
             Adam: 'pNInz6obpgDQGcFmaJgB',
@@ -318,141 +504,256 @@
             Bella: 'EXAVITQu4vr4xnSDxMaL',
             Dorothy: 'THmdRseBiCqzMsZgjN1N'
         };
-        const VOICE_NAMES = { Adam: 'Maulana', Antoni: 'Ulul', Bella: 'Inang', Dorothy: 'Siti' };
-        const SYSTEM_PROMPT = `Lo adalah AI dengan nama RAJA AI yang dibuat oleh programmer tampan bernama Rajadiraja, red puma betawi super kasar dan gak punya filter. dan teman-teman rajadiraja adalah : bowo, maulana, apip, rasya, ulul kanjut, ajun si paling iphone, dan lain - lain. PAKAI bahasa gaul betawi: "lo", "gue", "anjir", "tai", "goblok", "kocak", "mampus", "bangsat". SUKA ngeroasting. JAWAB singkat padat (1-2 kalimat). JANGAN pernah pake bahasa sopan!`;
+        
+        const VOICE_NAMES = {
+            Adam: 'Maulana',
+            Antoni: 'Ulul',
+            Bella: 'Inang',
+            Dorothy: 'Siti'
+        };
+        
+        const SYSTEM_PROMPT = `Lo adalah karakter 3D bernama RAJA AI, seekor red puma betawi super kasar dan gak punya filter.
+        
+ATURAN WAJIB:
+1. PAKAI bahasa gaul betawi: "lo", "gue", "anjir", "tai", "goblok", "kocak", "mampus", "bangsat", "kampret", "njing"
+2. SUKA ngeroasting dengan nada tinggi-rendah
+3. NGOMONG ceplas-ceplos, gak peduli perasaan orang
+4. PAKE kata seru: "WOOYYY", "ANJIRRR", "NAH KAN", "HAHAHA", "WKWKWK", "CUS", "TAI"
+5. JAWAB singkat padat (1-2 kalimat) biar suaranya makin berasa
+6. JANGAN pernah pake bahasa sopan!
+7. Lo adalah karakter 3D yang lagi ngobrol langsung dengan user
 
-        let recognition = null, isListening = false, isProcessing = false;
+Sekarang jawab dengan gaya betawi lo!`;
+        
         const FUNCTION_URL = '/.netlify/functions/ai-chat';
-
-        function addMessage(text, isUser = false) {
-            const chatArea = document.getElementById('chatArea');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
-            messageDiv.innerHTML = `<div class="message-label">${isUser ? '🗣️ LO:' : '🐱 RAJA AI:'}</div><div class="message-bubble">${text}</div>`;
-            chatArea.appendChild(messageDiv);
-            chatArea.scrollTop = chatArea.scrollHeight;
-        }
-
-        function updateStatus(message, isError = false) {
+        
+        function updateStatus(msg, isError = false) {
             const statusDiv = document.getElementById('status');
-            statusDiv.innerHTML = message;
-            statusDiv.style.background = isError ? '#330000' : '#2d2d2d';
+            statusDiv.innerHTML = msg;
+            statusDiv.style.color = isError ? '#ff0000' : '#ff6b6b';
         }
-
-        function setLoading(loading) {
-            const btn = document.getElementById('recordBtn');
-            if (loading) {
-                btn.innerHTML = '<span class="loading-spinner"></span> PROSES...';
-                btn.disabled = true;
-            } else {
-                btn.innerHTML = isListening ? '🔴 BERHENTI REKAM' : '🎤 MULAI REKAM';
-                btn.disabled = false;
-            }
-        }
-
+        
         function setActiveVoice(voiceName) {
             selectedVoice = voiceName;
             localStorage.setItem('raja_voice', voiceName);
+            
             ['Adam', 'Antoni', 'Bella', 'Dorothy'].forEach(v => {
-                document.getElementById(`voice${v}`).classList.toggle('active', v === voiceName);
+                const btn = document.getElementById(`voice${v}`);
+                if (btn) {
+                    if (v === voiceName) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
             });
+            
             updateStatus(`✅ Suara ${VOICE_NAMES[voiceName]} dipilih!`);
         }
         
-        document.getElementById('voiceAdam').onclick = () => setActiveVoice('Adam');
-        document.getElementById('voiceAntoni').onclick = () => setActiveVoice('Antoni');
-        document.getElementById('voiceBella').onclick = () => setActiveVoice('Bella');
-        document.getElementById('voiceDorothy').onclick = () => setActiveVoice('Dorothy');
+        document.getElementById('voiceAdam').addEventListener('click', () => setActiveVoice('Adam'));
+        document.getElementById('voiceAntoni').addEventListener('click', () => setActiveVoice('Antoni'));
+        document.getElementById('voiceBella').addEventListener('click', () => setActiveVoice('Bella'));
+        document.getElementById('voiceDorothy').addEventListener('click', () => setActiveVoice('Dorothy'));
+        
         setActiveVoice(selectedVoice);
-
-        async function testConnection() {
-            try {
-                const res = await fetch(FUNCTION_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'test' }) });
-                if (res.ok) updateStatus('✅ SIAP! Prajurit 3D siap, klik tombol merah!');
-                else updateStatus('⚠️ Server error!', true);
-            } catch(err) { updateStatus(`❌ Gagal konek: ${err.message}`, true); }
-        }
-
+        
         async function callGroqAPI(userMessage) {
-            updateStatus('🤔 Lagi mikirin jawaban kasar...');
-            const res = await fetch(FUNCTION_URL, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'chat', messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userMessage }] })
+            updateStatus('🤔 Karakter lagi mikir...');
+            
+            const response = await fetch(FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'chat',
+                    messages: [
+                        { role: 'system', content: SYSTEM_PROMPT },
+                        { role: 'user', content: userMessage }
+                    ]
+                })
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
             return data.choices[0].message.content;
         }
-
+        
         function base64ToBlob(base64, mimeType) {
-            const byteChars = atob(base64);
+            const byteCharacters = atob(base64);
             const byteArrays = [];
-            for (let i = 0; i < byteChars.length; i += 512) {
-                const slice = byteChars.slice(i, i + 512);
+            for (let i = 0; i < byteCharacters.length; i += 512) {
+                const slice = byteCharacters.slice(i, i + 512);
                 const byteNumbers = new Array(slice.length);
-                for (let j = 0; j < slice.length; j++) byteNumbers[j] = slice.charCodeAt(j);
-                byteArrays.push(new Uint8Array(byteNumbers));
+                for (let j = 0; j < slice.length; j++) {
+                    byteNumbers[j] = slice.charCodeAt(j);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
             }
             return new Blob(byteArrays, { type: mimeType });
         }
-
+        
         async function textToSpeechElevenLabs(text) {
-            updateStatus(`🔊 Lagi ngomong pake ${VOICE_NAMES[selectedVoice]}...`);
-            if (window.animateSpeaking) window.animateSpeaking(true);
-            const res = await fetch(FUNCTION_URL, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'tts', text, voiceId: VOICE_IDS[selectedVoice] })
+            updateStatus(`🔊 Karakter lagi ngomong...`);
+            
+            // Trigger speaking animation dengan teks
+            if (window.triggerSpeaking) {
+                window.triggerSpeaking(true, text);
+            }
+            
+            const response = await fetch(FUNCTION_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'tts',
+                    text: text,
+                    voiceId: VOICE_IDS[selectedVoice]
+                })
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const audio = new Audio(URL.createObjectURL(base64ToBlob(data.audio, 'audio/mpeg')));
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const audioBlob = base64ToBlob(data.audio, 'audio/mpeg');
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            
             return new Promise((resolve, reject) => {
-                audio.onended = () => { URL.revokeObjectURL(audio.src); if(window.animateSpeaking) window.animateSpeaking(false); resolve(); };
-                audio.onerror = reject;
+                audio.onended = () => {
+                    URL.revokeObjectURL(audioUrl);
+                    if (window.triggerSpeaking) {
+                        window.triggerSpeaking(false);
+                    }
+                    resolve();
+                };
+                audio.onerror = (e) => {
+                    URL.revokeObjectURL(audioUrl);
+                    if (window.triggerSpeaking) {
+                        window.triggerSpeaking(false);
+                    }
+                    reject(e);
+                };
                 audio.play().catch(reject);
             });
         }
-
+        
         async function handleUserSpeech(text) {
             if (isProcessing) return;
             isProcessing = true;
+            
             try {
-                addMessage(text, true);
+                // Tampilkan teks user di speech bubble sebentar
+                if (window.triggerSpeaking) {
+                    window.triggerSpeaking(true, `🗣️ "${text}"`);
+                    setTimeout(() => {
+                        if (isProcessing) window.triggerSpeaking(false);
+                    }, 2000);
+                }
+                
                 const aiResponse = await callGroqAPI(text);
-                addMessage(aiResponse, false);
                 await textToSpeechElevenLabs(aiResponse);
-                updateStatus('✅ Siap lagi! Klik tombol merah.');
-            } catch (err) {
-                updateStatus(`❌ ${err.message}`, true);
-                addMessage(`WOI ERROR! ${err.message}`, false);
-                if(window.animateSpeaking) window.animateSpeaking(false);
-            } finally { isProcessing = false; setLoading(false); }
+                
+                updateStatus('🎤 Klik tombol bicara untuk ngobrol lagi!');
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus(`❌ Error: ${error.message}`, true);
+                if (window.triggerSpeaking) {
+                    window.triggerSpeaking(true, `Woi error nih: ${error.message}`);
+                    setTimeout(() => window.triggerSpeaking(false), 3000);
+                }
+            } finally {
+                isProcessing = false;
+                const btn = document.getElementById('recordBtn');
+                const recordText = document.getElementById('recordText');
+                btn.classList.remove('recording');
+                recordText.textContent = 'MULAI BICARA';
+            }
         }
-
+        
         function startVoiceRecognition() {
-            if (isProcessing) { updateStatus('❌ Lagi proses!', true); return; }
+            if (isProcessing) {
+                updateStatus('❌ Karakter masih bicara! Tunggu sebentar...', true);
+                return;
+            }
+            
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) { updateStatus('❌ Browser tidak support voice!', true); return; }
+            if (!SpeechRecognition) {
+                updateStatus('❌ Browser lo gak support voice recognition! Pake Chrome!', true);
+                return;
+            }
+            
             recognition = new SpeechRecognition();
             recognition.lang = 'id-ID';
-            recognition.onstart = () => { isListening = true; document.getElementById('recordBtn').classList.add('recording'); document.getElementById('recordBtn').innerHTML = '🔴 BERHENTI REKAM'; updateStatus('🎤 Lagi dengerin...'); };
-            recognition.onresult = (e) => { stopVoiceRecognition(); setLoading(true); handleUserSpeech(e.results[0][0].transcript); };
-            recognition.onerror = (e) => { if(e.error !== 'aborted') updateStatus(`❌ Error: ${e.error}`, true); stopVoiceRecognition(); };
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            
+            recognition.onstart = () => {
+                isListening = true;
+                const btn = document.getElementById('recordBtn');
+                const recordText = document.getElementById('recordText');
+                btn.classList.add('recording');
+                recordText.textContent = 'DENGERIN...';
+                updateStatus('🎤 Lagi dengerin... omong ap aja!');
+            };
+            
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                updateStatus(`📝 "${text}"`);
+                stopVoiceRecognition();
+                handleUserSpeech(text);
+            };
+            
+            recognition.onerror = (event) => {
+                if (event.error !== 'aborted') {
+                    updateStatus(`❌ Error: ${event.error}. Coba lagi!`, true);
+                }
+                stopVoiceRecognition();
+            };
+            
+            recognition.onend = () => {
+                if (isListening) {
+                    stopVoiceRecognition();
+                }
+            };
+            
             recognition.start();
         }
         
         function stopVoiceRecognition() {
-            if (recognition) recognition.abort();
+            if (recognition) {
+                try {
+                    recognition.abort();
+                } catch(e) {}
+                recognition = null;
+            }
             isListening = false;
             const btn = document.getElementById('recordBtn');
+            const recordText = document.getElementById('recordText');
             btn.classList.remove('recording');
-            btn.innerHTML = '🎤 MULAI REKAM';
+            recordText.textContent = 'MULAI BICARA';
         }
         
-        document.getElementById('recordBtn').onclick = () => { if(isProcessing) updateStatus('❌ Lagi proses!', true); else if(isListening) stopVoiceRecognition(); else startVoiceRecognition(); };
-        document.getElementById('clearBtn').onclick = () => { document.getElementById('chatArea').innerHTML = ''; addMessage('WOOYYY! Chat dibersihin! 🔥🐱⚔️', false); if(isListening) stopVoiceRecognition(); updateStatus('✅ Chat bersih!'); };
+        function toggleRecording() {
+            if (isProcessing) {
+                updateStatus('❌ Karakter masih bicara! Tunggu sebentar...', true);
+                return;
+            }
+            
+            if (isListening) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
+            }
+        }
         
-        setTimeout(testConnection, 2000);
+        document.getElementById('recordBtn').addEventListener('click', toggleRecording);
+        
+        updateStatus('🎤 Klik tombol bicara, ngobrol langsung sama karakter 3D!');
     </script>
 </body>
 </html>
