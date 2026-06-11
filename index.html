@@ -239,8 +239,8 @@
         
         // Camera
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.2, 3.5);
-        camera.lookAt(0, 1, 0);
+        camera.position.set(0, 0, 3.5);
+        camera.lookAt(0, 0, 0);
         
         // Renderer
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -255,7 +255,7 @@
         controls.dampingFactor = 0.05;
         controls.autoRotate = false;
         controls.enableZoom = true;
-        controls.enablePan = false;
+        controls.enablePan = true;
         controls.zoomSpeed = 0.8;
         controls.target.set(0, 1, 0);
         
@@ -321,13 +321,13 @@
         let speakIntensity = 0;
         
         const loader = new GLTFLoader();
-        const modelUrl = 'Soldier.gltf';
+        const modelUrl = 'Soldier.glb';
         
         loader.load(modelUrl, 
             (gltf) => {
                 model = gltf.scene;
                 model.scale.set(5.8, 5.8, 5.8);
-                model.position.set(0, -0.6, 0);
+                model.position.set(0, 100.0, 0);
                 model.rotation.y = -0.3;
                 
                 model.traverse((node) => {
