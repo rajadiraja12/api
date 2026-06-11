@@ -244,49 +244,82 @@
         
         // Renderer
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
-        container.appendChild(renderer.domElement);
-        
-        // Controls (biar user bisa zoom/rotate kalo mau)
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.autoRotate = false;
-        controls.enableZoom = true;
-        controls.enablePan = true;
-        controls.zoomSpeed = 0.8;
-        controls.target.set(0, 1, 0);
-        
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
-        scene.add(ambientLight);
-        
-        const mainLight = new THREE.DirectionalLight(0xffaa88, 1);
-        mainLight.position.set(2, 3, 2);
-        mainLight.castShadow = true;
-        mainLight.receiveShadow = true;
-        scene.add(mainLight);
-        
-        const fillLight = new THREE.PointLight(0x4ecdc4, 0.4);
-        fillLight.position.set(-1, 1.5, 2);
-        scene.add(fillLight);
-        
-        const rimLight = new THREE.PointLight(0xff6b6b, 0.6);
-        rimLight.position.set(0, 1.5, -2);
-        scene.add(rimLight);
-        
-        const backLight = new THREE.PointLight(0x335588, 0.3);
-        backLight.position.set(0, 1, -3);
-        scene.add(backLight);
-        
-        // Ground (refleksi)
-        const gridHelper = new THREE.GridHelper(8, 20, 0xff6b6b, 0x335588);
-        gridHelper.position.y = -0.8;
-        gridHelper.material.transparent = true;
-        gridHelper.material.opacity = 0.2;
-        scene.add(gridHelper);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+container.appendChild(renderer.domElement);
+
+// Controls (biar user bisa zoom/rotate kalo mau)
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.autoRotate = false;
+controls.enableZoom = true;
+controls.enablePan = true;
+controls.zoomSpeed = 0.8;
+controls.target.set(0, 1, 0);
+
+// ========== PENCAHAYAAN TERANG PUTIH DARI DEPAN, BELAKANG, SAMPING ==========
+
+// Ambient light - untuk menerangi seluruh ruangan secara merata
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+// 1. CAHAYA DEPAN (Front Light) - terang putih
+const frontLight = new THREE.DirectionalLight(0xffffff, 1.2);
+frontLight.position.set(0, 1.5, 3);
+frontLight.castShadow = true;
+frontLight.receiveShadow = false;
+scene.add(frontLight);
+
+// Tambahan fill dari depan agar lebih terang
+const frontFillLight = new THREE.PointLight(0xffffff, 0.6);
+frontFillLight.position.set(0, 1.2, 2.5);
+scene.add(frontFillLight);
+
+// 2. CAHAYA BELAKANG (Back Light) - terang putih
+const backLight = new THREE.DirectionalLight(0xffffff, 1.0);
+backLight.position.set(0, 1.5, -3);
+backLight.castShadow = true;
+scene.add(backLight);
+
+// Tambahan dari belakang bawah
+const backFillLight = new THREE.PointLight(0xffffff, 0.5);
+backFillLight.position.set(0, 0.8, -2.8);
+scene.add(backFillLight);
+
+// 3. CAHAYA SAMPING KANAN (Right Side Light) - terang putih
+const rightLight = new THREE.DirectionalLight(0xffffff, 1.0);
+rightLight.position.set(3, 1.5, 0);
+rightLight.castShadow = true;
+scene.add(rightLight);
+
+// 4. CAHAYA SAMPING KIRI (Left Side Light) - terang putih
+const leftLight = new THREE.DirectionalLight(0xffffff, 1.0);
+leftLight.position.set(-3, 1.5, 0);
+leftLight.castShadow = true;
+scene.add(leftLight);
+
+// 5. CAHAYA DARI ATAS (Top Light) - bantuan agar merata
+const topLight = new THREE.DirectionalLight(0xffffff, 0.5);
+topLight.position.set(0, 3, 0);
+scene.add(topLight);
+
+// 6. CAHAYA KELILING (Fill Light) - meratakan bayangan
+const fillLight = new THREE.PointLight(0xffffff, 0.4);
+fillLight.position.set(1, 1.2, 1);
+scene.add(fillLight);
+
+const fillLight2 = new THREE.PointLight(0xffffff, 0.4);
+fillLight2.position.set(-1, 1.2, -1);
+scene.add(fillLight2);
+
+// Ground (refleksi)
+const gridHelper = new THREE.GridHelper(8, 20, 0xcccccc, 0x888888);
+gridHelper.position.y = -0.8;
+gridHelper.material.transparent = true;
+gridHelper.material.opacity = 0.2;
+scene.add(gridHelper);
         
         // Floating particles
         const particleCount = 200;
