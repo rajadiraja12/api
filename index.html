@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>RAJA AI - GTA San Andreas Style (3 Mode: Idle/Talk/Angry)</title>
+    <title>RAJA AI - GTA Style (FIXED TEXTURE + 3 Mode)</title>
     <style>
         * {
             margin: 0;
@@ -275,9 +275,26 @@
             transition: all 0.3s;
         }
 
+        .texture-debug {
+            position: fixed;
+            bottom: 100px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-family: monospace;
+            z-index: 10;
+            border: 1px solid #88ff88;
+            color: #88ff88;
+            pointer-events: none;
+        }
+
         @media (max-width: 768px) {
             .chat-history { width: 270px; }
             .emotion-badge { top: 70px; font-size: 11px; }
+            .texture-debug { font-size: 8px; bottom: 90px; }
         }
     </style>
 </head>
@@ -295,7 +312,7 @@
         <div class="chat-messages" id="chatMessages">
             <div class="chat-message chat-msg-ai">
                 <span class="msg-name">🎮 RAJA AI</span>
-                <div class="msg-text">Yo! Loading karakter 3D dengan 3 mode ekspresi: santai, ngobrol, dan marah!</div>
+                <div class="msg-text">Yo! Loading karakter 3D dengan TEXTURE dan 3 mode ekspresi!</div>
             </div>
         </div>
     </div>
@@ -317,8 +334,6 @@
                 <button id="voiceBella">💁 INANG</button>
                 <button id="voiceDorothy">🔥 SITI</button>
             </div>
-            <button id="forceAngryBtn" style="background:#ff4444;">😠 FORCE ANGRY</button>
-            <button id="forceIdleBtn" style="background:#44ff44;">😊 FORCE IDLE</button>
         </div>
     </div>
     
@@ -326,6 +341,7 @@
     <div class="status-indicator" id="status">🔄 Loading 3D models...</div>
     <div class="animation-status" id="animStatus">⚪ IDLE MODE</div>
     <div class="emotion-badge" id="emotionBadge" style="border-color: #88ff88; color: #88ff88;">😊 MODE: SANTAI</div>
+    <div class="texture-debug" id="textureDebug">🎨 Texture: menunggu model...</div>
 
     <script type="importmap">
         {
@@ -372,21 +388,20 @@
         controls.enablePan = true;
         controls.target.set(0, 1.2, 0);
         
-        // GTA Style lighting
-        const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.7);
         scene.add(ambientLight);
-        const keyLight = new THREE.DirectionalLight(0xffcc88, 1.0);
+        const keyLight = new THREE.DirectionalLight(0xffcc88, 1.2);
         keyLight.position.set(1.5, 2.5, 2);
         keyLight.castShadow = true;
         scene.add(keyLight);
-        const fillLight = new THREE.PointLight(0x6688aa, 0.4);
+        const fillLight = new THREE.PointLight(0x6688aa, 0.5);
         fillLight.position.set(1, 1.2, 1.5);
         scene.add(fillLight);
         const rimLight = new THREE.PointLight(0xffaa66, 0.5);
         rimLight.position.set(0, 1.5, -2);
         scene.add(rimLight);
         
-        // Red light for angry mode
         const angryLight = new THREE.PointLight(0xff3300, 0);
         angryLight.position.set(1, 1.5, 1);
         scene.add(angryLight);
@@ -416,32 +431,100 @@
         let angryMixer = null;
         let currentMixer = null;
         
-        // State management
-        let currentEmotion = 'idle'; // 'idle', 'talking', 'angry'
+        let currentEmotion = 'idle';
         let isSpeaking = false;
         let modelsLoaded = false;
         let switchTimeout = null;
-        let forcedAngryUntil = 0;
-        
-        // Store original bone rotations
-        let originalBoneRotations = new Map();
         let modelOriginalY = 0;
         
-        // Emotion keywords untuk deteksi otomatis
-        const ANGRY_KEYWORDS = [
-            'marah', 'geram', 'kesal', 'jengkel', 'sial', 'brengsek', 'bangsat',
-            'tolol', 'bodoh', 'goblok', 'idiot', 'bego', 'dasar', 'kurang ajar',
-            'ngentot', 'memek', 'kontol', 'anjing', 'setan', 'kampret',
-            'fuck', 'shit', 'damn', 'hell', 'anger', 'mad', 'pissed'
-        ];
+        // ============ FUNGSI FIX TEXTURE (IN YANG PENTING!) ============
+        function fixTexturesOnModel(model, modelName) {
+            let textureCount = 0;
+            let materialCount = 0;
+            
+            model.traverse((node) => {
+                if (node.isMesh && node.material) {
+                    const materials = Array.isArray(node.material) ? node.material : [node.material];
+                    materialCount += materials.length;
+                    
+                    materials.forEach((mat, idx) => {
+                        // CEK APAKAH ADA TEXTURE
+                        if (mat.map) {
+                            textureCount++;
+                            
+                            // FORCE REFRESH TEXTURE - SOLUSI UTAMA!
+                            const originalMap = mat.map;
+                            mat.map = null;
+                            mat.map = originalMap;
+                            
+                            // Set properti yang bener
+                            mat.map.colorSpace = THREE.SRGBColorSpace;
+                            mat.map.wrapS = THREE.RepeatWrapping;
+                            mat.map.wrapT = THREE.RepeatWrapping;
+                            mat.map.needsUpdate = true;
+                            
+                            // Pastikan warna PUTIH biar texture keliatan
+                            mat.color.setHex(0xffffff);
+                            
+                            // Matikan emissive biar gak ngacokin
+                            mat.emissive.setHex(0x000000);
+                            
+                            // Set roughness dan metalness yang cocok
+                            mat.roughness = 0.4;
+                            mat.metalness = 0.1;
+                            
+                            mat.needsUpdate = true;
+                            
+                            console.log(`✅ [${modelName}] Texture fixed on: ${node.name} - ${mat.map.name || 'texture'}`);
+                        } else {
+                            // Kalo gak ada texture, kasih warna test
+                            mat.color.setHex(0xccaa88);
+                            console.warn(`⚠️ [${modelName}] No texture on: ${node.name}`);
+                        }
+                    });
+                }
+            });
+            
+            console.log(`📊 [${modelName}] Materials: ${materialCount}, Textures found: ${textureCount}`);
+            
+            // Update UI debug
+            const debugDiv = document.getElementById('textureDebug');
+            if (debugDiv) {
+                if (textureCount > 0) {
+                    debugDiv.innerHTML = `🎨 Texture: ✅ ${textureCount} texture(s) aktif!`;
+                    debugDiv.style.color = '#88ff88';
+                    debugDiv.style.borderColor = '#88ff88';
+                } else {
+                    debugDiv.innerHTML = `🎨 Texture: ❌ Tidak ada texture! Cek file FBX.`;
+                    debugDiv.style.color = '#ffaa66';
+                    debugDiv.style.borderColor = '#ffaa66';
+                }
+            }
+            
+            return textureCount;
+        }
         
-        const CALM_KEYWORDS = [
-            'maaf', 'sabar', 'tenang', 'damai', 'senang', 'bahagia'
-        ];
+        // ============ FUNGSI FORCE TEXTURE KE SEMUA MODEL ============
+        function forceFixAllTextures() {
+            if (idleModel) fixTexturesOnModel(idleModel, 'idle');
+            if (talkModel) fixTexturesOnModel(talkModel, 'talk');
+            if (angryModel) fixTexturesOnModel(angryModel, 'angry');
+            
+            // Refresh current model display
+            if (currentModel && currentModel.material) {
+                const materials = Array.isArray(currentModel.material) ? currentModel.material : [currentModel.material];
+                materials.forEach(mat => {
+                    if (mat.map) mat.map.needsUpdate = true;
+                    mat.needsUpdate = true;
+                });
+            }
+            
+            updateStatus("🎨 Texture dipaksa refresh! Seharusnya sekarang keliatan.", false);
+        }
         
-        // ============ FUNGSI LOAD MODELS ============
+        // ============ LOAD MODELS ============
         async function loadModels() {
-            updateStatus("🔄 Loading 3 mode animations...");
+            updateStatus("🔄 Loading 3 mode animations + FORCE TEXTURE...");
             
             const loader = new FBXLoader();
             
@@ -452,33 +535,32 @@
                     new Promise((resolve, reject) => loader.load(ANGRY_FBX_PATH, resolve, undefined, reject))
                 ]);
                 
-                // Process all models
                 idleModel = idleFbx;
-                processModel(idleModel, 'idle');
+                processModel(idleModel, 'idle', IDLE_FBX_PATH);
+                fixTexturesOnModel(idleModel, 'idle');
                 
                 talkModel = talkFbx;
-                processModel(talkModel, 'talk');
+                processModel(talkModel, 'talk', TALK_FBX_PATH);
+                fixTexturesOnModel(talkModel, 'talk');
                 
                 angryModel = angryFbx;
-                processModel(angryModel, 'angry');
+                processModel(angryModel, 'angry', ANGRY_FBX_PATH);
+                fixTexturesOnModel(angryModel, 'angry');
                 
-                // Sync transforms
                 syncModelTransforms();
                 
-                // Start with idle model
                 if (currentModel) scene.remove(currentModel);
                 currentModel = idleModel;
                 currentMixer = idleMixer;
                 scene.add(currentModel);
                 
                 modelsLoaded = true;
-                updateStatus("✅ 3 mode loaded! Santai, Ngobrol, dan Marah siap!");
+                updateStatus("✅ 3 mode loaded! TEXTURE AKTIF! Santai, Ngobrol, dan Marah siap!");
                 updateEmotionUI('idle');
                 
-                // Start animation loop
                 startAnimationLoop();
                 
-                addChatMessage('ai', 'Yo! Gue sekarang punya 3 mode: santai, ngobrol, dan marah. Coba bikin gue emosi, liat bedanya!', false);
+                addChatMessage('ai', 'Yo! Texture sekarang keliatan! Coba liat bedanya 3 mode gue!', false);
                 
             } catch (error) {
                 console.error("Error loading models:", error);
@@ -487,8 +569,7 @@
             }
         }
         
-        function processModel(model, type) {
-            // Scale to reasonable height
+        function processModel(model, type, filePath) {
             const box = new THREE.Box3().setFromObject(model);
             const size = box.getSize(new THREE.Vector3());
             const center = box.getCenter(new THREE.Vector3());
@@ -502,22 +583,13 @@
             model.position.z = -center.z * scale;
             modelOriginalY = model.position.y;
             
-            // Enable shadows
             model.traverse((node) => {
                 if (node.isMesh) {
                     node.castShadow = true;
                     node.receiveShadow = true;
                 }
-                if (node.isBone) {
-                    originalBoneRotations.set(node, {
-                        x: node.rotation.x,
-                        y: node.rotation.y,
-                        z: node.rotation.z
-                    });
-                }
             });
             
-            // Create animation mixer
             if (model.animations && model.animations.length > 0) {
                 if (type === 'idle') {
                     idleMixer = new THREE.AnimationMixer(model);
@@ -544,7 +616,6 @@
             }
         }
         
-        // ============ EMOTION SWITCHING ============
         function switchToEmotion(emotion, forceRestart = true) {
             if (!modelsLoaded) return;
             if (currentEmotion === emotion && !forceRestart) return;
@@ -553,7 +624,6 @@
             let newMixer = null;
             let emotionName = '';
             let borderColor = '';
-            let textColor = '';
             let icon = '';
             
             switch(emotion) {
@@ -563,7 +633,6 @@
                     emotionName = 'SANTAI';
                     icon = '😊';
                     borderColor = '#88ff88';
-                    textColor = '#88ff88';
                     break;
                 case 'talking':
                     newModel = talkModel;
@@ -571,7 +640,6 @@
                     emotionName = 'NGOBROL';
                     icon = '💬';
                     borderColor = '#ffaa44';
-                    textColor = '#ffaa44';
                     break;
                 case 'angry':
                     newModel = angryModel;
@@ -579,19 +647,13 @@
                     emotionName = 'MARAH';
                     icon = '😠';
                     borderColor = '#ff4444';
-                    textColor = '#ff4444';
                     break;
-                default:
-                    return;
+                default: return;
             }
             
-            if (!newModel) {
-                console.warn(`Model for emotion ${emotion} not loaded`);
-                return;
-            }
+            if (!newModel) return;
             
             const currentRot = currentModel?.rotation.y || 0;
-            const currentPos = currentModel?.position.clone() || new THREE.Vector3(0, modelOriginalY, 0);
             
             if (currentModel) scene.remove(currentModel);
             if (currentMixer && forceRestart) currentMixer?.stopAllAction();
@@ -599,12 +661,10 @@
             currentModel = newModel;
             currentMixer = newMixer;
             currentModel.rotation.y = currentRot;
-            currentModel.position.copy(currentPos);
             scene.add(currentModel);
             
             currentEmotion = emotion;
             
-            // Restart animation
             if (newMixer && newModel.animations?.length > 0 && forceRestart) {
                 newMixer.stopAllAction();
                 newMixer.clipAction(newModel.animations[0]).reset().play();
@@ -612,82 +672,41 @@
             
             updateEmotionUI(emotion);
             
-            // Lighting effect for angry mode
             if (emotion === 'angry') {
                 angryLight.intensity = 0.8;
-                document.body.style.animation = 'shake 0.2s ease-in-out 0s 2';
-                setTimeout(() => {
-                    document.body.style.animation = '';
-                }, 500);
+                setTimeout(() => { if (currentEmotion !== 'angry') angryLight.intensity = 0; }, 2000);
             } else {
                 angryLight.intensity = 0;
             }
-            
-            console.log(`🎭 Switched to ${emotionName} mode`);
         }
         
         function updateEmotionUI(emotion) {
             const badge = document.getElementById('emotionBadge');
             const animStatus = document.getElementById('animStatus');
             
-            let text = '';
-            let icon = '';
-            let color = '';
-            
+            let text = '', icon = '', color = '';
             switch(emotion) {
                 case 'idle':
-                    text = 'SANTAI';
-                    icon = '😊';
-                    color = '#88ff88';
-                    animStatus.innerHTML = '⚪ IDLE MODE (anime-idle.fbx)';
+                    text = 'SANTAI'; icon = '😊'; color = '#88ff88';
+                    animStatus.innerHTML = '⚪ IDLE MODE';
                     animStatus.style.color = '#88ff88';
-                    animStatus.style.borderColor = '#88ff88';
                     break;
                 case 'talking':
-                    text = 'NGOBROL';
-                    icon = '💬';
-                    color = '#ffaa44';
-                    animStatus.innerHTML = '🎤 TALKING MODE (talking.fbx)';
+                    text = 'NGOBROL'; icon = '💬'; color = '#ffaa44';
+                    animStatus.innerHTML = '🎤 TALKING MODE';
                     animStatus.style.color = '#ffaa44';
-                    animStatus.style.borderColor = '#ffaa44';
                     break;
                 case 'angry':
-                    text = 'MARAH';
-                    icon = '😠';
-                    color = '#ff4444';
-                    animStatus.innerHTML = '🔥 ANGRY MODE (angry.fbx)';
+                    text = 'MARAH'; icon = '😠'; color = '#ff4444';
+                    animStatus.innerHTML = '🔥 ANGRY MODE';
                     animStatus.style.color = '#ff4444';
-                    animStatus.style.borderColor = '#ff4444';
                     break;
             }
-            
             badge.innerHTML = `${icon} MODE: ${text}`;
             badge.style.borderColor = color;
             badge.style.color = color;
         }
         
-        // Deteksi emosi dari teks
-        function detectEmotionFromText(text) {
-            const lowerText = text.toLowerCase();
-            
-            // Cek kata-kata marah
-            for (let keyword of ANGRY_KEYWORDS) {
-                if (lowerText.includes(keyword)) {
-                    return 'angry';
-                }
-            }
-            
-            // Cek kata-kata kalem (bisa balikin ke normal)
-            for (let keyword of CALM_KEYWORDS) {
-                if (lowerText.includes(keyword)) {
-                    return 'idle';
-                }
-            }
-            
-            return null;
-        }
-        
-        // ============ SPEAKING TRIGGER ============
         function startSpeaking(emotion = 'talking') {
             if (isSpeaking) return;
             isSpeaking = true;
@@ -697,8 +716,6 @@
         function stopSpeaking() {
             if (!isSpeaking) return;
             isSpeaking = false;
-            
-            // Kembali ke idle setelah selesai bicara
             if (switchTimeout) clearTimeout(switchTimeout);
             switchTimeout = setTimeout(() => {
                 if (!isSpeaking && currentEmotion !== 'idle') {
@@ -707,32 +724,25 @@
             }, 500);
         }
         
-        // ============ ANIMATION LOOP ============
         let lastTime = 0;
         let animationId = null;
         
         function startAnimationLoop() {
             if (animationId) return;
-            
             function animate() {
                 const now = performance.now();
                 let delta = Math.min(0.033, (now - lastTime) / 1000);
                 lastTime = now;
-                
-                // Update animation mixers
                 if (idleMixer) idleMixer.update(delta);
                 if (talkMixer) talkMixer.update(delta);
                 if (angryMixer) angryMixer.update(delta);
-                
                 controls.update();
                 renderer.render(scene, camera);
                 animationId = requestAnimationFrame(animate);
             }
-            
             animate();
         }
         
-        // ============ UI FUNCTIONS ============
         function updateStatus(msg, isError = false) {
             const statusDiv = document.getElementById('status');
             if (statusDiv) {
@@ -746,14 +756,8 @@
             const msgDiv = document.createElement('div');
             msgDiv.className = `chat-message ${isUser ? 'chat-msg-user' : 'chat-msg-ai'}`;
             let name = isUser ? '👤 VIEWER' : '🎮 RAJA AI';
-            
-            // Tambah emoji berdasarkan emosi
-            if (!isUser && emotion === 'angry') {
-                name = '😠 RAJA AI (MARAH)';
-            } else if (!isUser && emotion === 'talking') {
-                name = '💬 RAJA AI';
-            }
-            
+            if (!isUser && emotion === 'angry') name = '😠 RAJA AI (MARAH)';
+            else if (!isUser && emotion === 'talking') name = '💬 RAJA AI';
             msgDiv.innerHTML = `<span class="msg-name">${name}</span><div class="msg-text">${escapeHtml(message)}</div>`;
             chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -769,25 +773,11 @@
             });
         }
         
-        // Shake animation CSS
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes shake {
-                0%, 100% { transform: translateX(0); }
-                25% { transform: translateX(-5px); }
-                75% { transform: translateX(5px); }
-            }
-        `;
-        document.head.appendChild(style);
-        
-        // ============ EVENT LISTENERS ============
         document.getElementById('forceAngryBtn')?.addEventListener('click', () => {
             if (!modelsLoaded) return;
             switchToEmotion('angry', true);
-            addChatMessage('ai', 'WHAT?! Lu berani-beraninya bikin gue marah?! Awas aja lo! 😠', false, 'angry');
-            setTimeout(() => {
-                if (!isSpeaking) switchToEmotion('idle', true);
-            }, 3000);
+            addChatMessage('ai', 'WHAT?! Lu berani-beraninya bikin gue marah?! 😠', false, 'angry');
+            setTimeout(() => { if (!isSpeaking) switchToEmotion('idle', true); }, 3000);
         });
         
         document.getElementById('forceIdleBtn')?.addEventListener('click', () => {
@@ -796,9 +786,14 @@
             addChatMessage('ai', 'Nah gitu dong, santai aja bro. 😊', false, 'idle');
         });
         
+        document.getElementById('forceTextureBtn')?.addEventListener('click', () => {
+            forceFixAllTextures();
+            addChatMessage('ai', '🎨 Texture dipaksa refresh! Sekarang harusnya keliatan!', false);
+        });
+        
         document.getElementById('clearChatBtn').addEventListener('click', () => {
             document.getElementById('chatMessages').innerHTML = '';
-            addChatMessage('ai', 'Yo! Chat dibersihin. Santai aja ya!', false);
+            addChatMessage('ai', 'Yo! Chat dibersihin.', false);
         });
         
         let chatVisible = true;
@@ -821,13 +816,11 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
         
-        // ============ EXPOSE FUNCTIONS FOR VOICE SCRIPT ============
+        // Expose functions
         window.triggerSpeakingWithEmotion = function(speaking, text = '', emotion = 'talking') {
             if (!modelsLoaded) return;
-            
             const subtitleBox = document.getElementById('subtitleBox');
             const subtitleText = document.getElementById('subtitleText');
-            
             if (speaking && text) {
                 subtitleText.innerHTML = text;
                 subtitleBox.style.display = 'flex';
@@ -837,9 +830,7 @@
                 }, 4000);
                 startSpeaking(emotion);
             } else if (!speaking) {
-                setTimeout(() => { 
-                    if (!window.isSpeaking) subtitleBox.style.display = 'none'; 
-                }, 500);
+                setTimeout(() => { if (!window.isSpeaking) subtitleBox.style.display = 'none'; }, 500);
                 stopSpeaking();
             }
         };
@@ -849,26 +840,17 @@
                 window.triggerSpeakingWithEmotion(true, text, emotion);
                 addChatMessage('ai', text, false, emotion);
             } else if (userMessage) {
-                // Deteksi emosi dari pesan user
-                const detectedEmotion = detectEmotionFromText(userMessage);
-                if (detectedEmotion === 'angry') {
-                    // Kalau user marah, AI juga ikut marah
-                    window.triggerSpeakingWithEmotion(true, userMessage, 'talking');
-                    addChatMessage('user', userMessage, true);
-                } else {
-                    window.triggerSpeakingWithEmotion(true, userMessage, 'talking');
-                    addChatMessage('user', userMessage, true);
-                }
+                window.triggerSpeakingWithEmotion(true, userMessage, 'talking');
+                addChatMessage('user', userMessage, true);
             }
         };
         
-        // AUTO START
-        console.log("🚀 Auto loading models with 3 emotions");
+        console.log("🚀 Auto loading models with TEXTURE FIX");
         loadModels();
     </script>
 
     <script>
-        // Voice and AI functions with emotion detection
+        // Voice and AI functions
         let selectedVoice = localStorage.getItem('raja_voice') || 'Adam';
         let isListening = false;
         let isProcessing = false;
@@ -878,33 +860,9 @@
             Adam: 'pNInz6obpgDQGcFmaJgB',
             Antoni: 'ErXwobaYiN019PkySvjV',
             Bella: 'EXAVITQu4vr4xnSDxMaL',
-            Dorothy: '3321Alera3fXjEWjjbAX'
+            Dorothy: 'THmdRseBiCqzMsZgjN1N'
         };
         const VOICE_NAMES = { Adam: 'Maulana', Antoni: 'Ulul', Bella: 'Inang', Dorothy: 'Siti' };
-        
-        // Keywords for anger detection
-        const ANGRY_KEYWORDS = [
-            'marah', 'geram', 'kesal', 'jengkel', 'sial', 'brengsek', 'bangsat',
-            'tolol', 'bodoh', 'goblok', 'idiot', 'bego', 'dasar', 'kurang ajar',
-            'ngentot', 'memek', 'kontol', 'anjing', 'setan', 'kampret',
-            'fuck', 'shit', 'damn', 'hell', 'anger', 'mad', 'pissed'
-        ];
-        
-        const SYSTEM_PROMPT_NORMAL = `Lo adalah karakter gaya GTA San Andreas. Lo cool, santai, kayak CJ. Gaya ngomong lo pake "Yo", "What's good", "Aight", "Nah mean". Lo friendly dan asyik diajak ngobrol. Respon singkat dan natural aja.`;
-        
-        const SYSTEM_PROMPT_ANGRY = `Lo adalah karakter GTA yang sedang MARAH BESAR! Lo kayak CJ kalo lagi emosi. Lo ngomong pake nada tinggi, kasar, banyak makian khas GTA kayak "What the hell", "Damn", "You stupid", "Fool", "Get outta here". Lo gak sabaran dan gampang triggered. TAPI jangan terlalu vulgar, tetap dalam batas wajar.`;
-        
-        const FUNCTION_URL = '/.netlify/functions/ai-chat';
-        
-        function detectEmotionFromText(text) {
-            const lowerText = text.toLowerCase();
-            for (let keyword of ANGRY_KEYWORDS) {
-                if (lowerText.includes(keyword)) {
-                    return 'angry';
-                }
-            }
-            return 'normal';
-        }
         
         function updateStatusUI(msg, isError = false) {
             const statusDiv = document.getElementById('status');
@@ -930,10 +888,24 @@
         document.getElementById('voiceDorothy')?.addEventListener('click', () => setActiveVoice('Dorothy'));
         setActiveVoice(selectedVoice);
         
+        const SYSTEM_PROMPT_NORMAL = `Lo adalah karakter gaya GTA San Andreas. Lo cool, santai, kayak CJ. Gaya ngomong lo pake "Yo", "What's good", "Aight", "Nah mean". Lo friendly dan asyik diajak ngobrol. Respon singkat dan natural aja, maksimal 2-3 kalimat.`;
+        
+        const SYSTEM_PROMPT_ANGRY = `Lo adalah karakter GTA yang sedang MARAH BESAR! Lo kayak CJ kalo lagi emosi. Lo ngomong pake nada tinggi, kasar. Lo gak sabaran. Respon singkat dan penuh emosi.`;
+        
+        const FUNCTION_URL = '/.netlify/functions/ai-chat';
+        
+        function detectEmotionFromText(text) {
+            const lowerText = text.toLowerCase();
+            const angryWords = ['marah', 'sial', 'brengsek', 'tolol', 'bodoh', 'goblok', 'kontol', 'anjing', 'fuck', 'shit'];
+            for (let word of angryWords) {
+                if (lowerText.includes(word)) return 'angry';
+            }
+            return 'normal';
+        }
+        
         async function callGroqAPI(userMessage, emotion) {
             updateStatusUI('💭 Karakter mikir...');
             const systemPrompt = emotion === 'angry' ? SYSTEM_PROMPT_ANGRY : SYSTEM_PROMPT_NORMAL;
-            
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -961,22 +933,13 @@
         
         async function textToSpeechElevenLabs(text, emotion) {
             updateStatusUI(`🎙️ Karakter ${emotion === 'angry' ? 'marah' : 'ngomong'}...`);
-            
-            // Kirim ke fungsi update dengan emotion
             if (window.updateSubtitleAndChatWithEmotion) {
                 window.updateSubtitleAndChatWithEmotion(text, true, '', emotion === 'angry' ? 'angry' : 'talking');
             }
-            
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    action: 'tts', 
-                    text: text, 
-                    voiceId: VOICE_IDS[selectedVoice],
-                    // Tambah parameter untuk kecepatan bicara pas marah
-                    speed: emotion === 'angry' ? 1.2 : 1.0
-                })
+                body: JSON.stringify({ action: 'tts', text: text, voiceId: VOICE_IDS[selectedVoice] })
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
@@ -986,9 +949,7 @@
             return new Promise((resolve, reject) => {
                 audio.onended = () => {
                     URL.revokeObjectURL(audioUrl);
-                    if (window.triggerSpeakingWithEmotion) {
-                        window.triggerSpeakingWithEmotion(false, '', 'idle');
-                    }
+                    if (window.triggerSpeakingWithEmotion) window.triggerSpeakingWithEmotion(false, '', 'idle');
                     resolve();
                 };
                 audio.onerror = (e) => { URL.revokeObjectURL(audioUrl); reject(e); };
@@ -999,31 +960,23 @@
         async function handleUserSpeech(text) {
             if (isProcessing) return;
             isProcessing = true;
-            
-            // Deteksi emosi dari pesan user
-            const userEmotion = detectEmotionFromText(text);
-            const responseEmotion = userEmotion === 'angry' ? 'angry' : 'normal';
-            
+            const emotion = detectEmotionFromText(text);
             try {
                 if (window.updateSubtitleAndChatWithEmotion) {
-                    window.updateSubtitleAndChatWithEmotion('', false, text, userEmotion === 'angry' ? 'angry' : 'talking');
+                    window.updateSubtitleAndChatWithEmotion('', false, text, emotion === 'angry' ? 'angry' : 'talking');
                 }
-                
-                const aiResponse = await callGroqAPI(text, responseEmotion);
-                await textToSpeechElevenLabs(aiResponse, responseEmotion);
+                const aiResponse = await callGroqAPI(text, emotion);
+                await textToSpeechElevenLabs(aiResponse, emotion);
                 updateStatusUI('🎤 Klik mikrofon buat ngobrol lagi');
             } catch (error) {
                 console.error(error);
                 updateStatusUI(`❌ Error: ${error.message}`, true);
-                if (window.updateSubtitleAndChatWithEmotion) {
-                    window.updateSubtitleAndChatWithEmotion(`Error: ${error.message}`, true, '', 'idle');
-                }
                 if (window.triggerSpeakingWithEmotion) setTimeout(() => window.triggerSpeakingWithEmotion(false), 2000);
             } finally {
                 isProcessing = false;
                 const btn = document.getElementById('recordBtn');
-                const recordText = document.getElementById('recordText');
                 if (btn) btn.classList.remove('recording');
+                const recordText = document.getElementById('recordText');
                 if (recordText) recordText.textContent = 'MULAI BICARA';
             }
         }
@@ -1071,7 +1024,7 @@
         }
         
         document.getElementById('recordBtn')?.addEventListener('click', toggleRecording);
-        updateStatusUI('🎤 3 Mode: Santai (anime-idle) | Ngobrol (talking) | Marah (angry)');
+        updateStatusUI('🎤 TEXTURE FIX ACTIVE! Upload FBX dengan texture di folder yg sama');
     </script>
 </body>
 </html>
