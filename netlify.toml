@@ -1,11 +1,23 @@
 [build]
-  functions = "netlify/functions"
+  publish = "."
+  command = "echo 'No build command needed'"
 
 [functions]
-  ai-chat = { path = "/api/ai-chat" }
+  node_bundler = "esbuild"
+  directory = "netlify/functions"
 
+# Timeout dinaikkan jadi 30 detik
+[functions."ai-chat"]
+  timeout = 30
+
+# Redirect semua API request ke function
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/.netlify/functions/ai-chat"
+  to = "/.netlify/functions/ai-chat"
   status = 200
-  force = true
+
+# Fallback untuk SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

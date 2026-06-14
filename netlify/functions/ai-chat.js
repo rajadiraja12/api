@@ -1,4 +1,14 @@
-const fetch = require('node-fetch');
+// netlify/functions/ai-chat.js
+// Untuk Node.js 18+, fetch sudah built-in, gak perlu node-fetch!
+// TAPI kalau mau pake node-fetch, install dulu
+
+// Cara 1: Pake fetch bawaan Node.js 18+ (RECOMMENDED)
+// Gak perlu install apa-apa
+
+// Cara 2: Pake node-fetch (kalau pake Node.js versi lama)
+// const fetch = require('node-fetch');
+
+// PAKE CARA 1 (LANGSUNG) - HAPUS const fetch = require('node-fetch');
 
 exports.handler = async (event) => {
   // CORS headers untuk semua response
@@ -6,13 +16,13 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Max-Age': '86400' // Cache preflight request 24 jam
+    'Access-Control-Max-Age': '86400'
   };
 
   // 1. HANDLE OPTIONS (Preflight request untuk CORS)
   if (event.httpMethod === 'OPTIONS') {
     return {
-      statusCode: 204, // No content
+      statusCode: 204,
       headers,
       body: ''
     };
@@ -29,11 +39,6 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         status: 'ok',
         message: '✅ Function RAJA AI berjalan! Gunakan method POST untuk chat atau TTS.',
-        instructions: {
-          chat: 'POST dengan body: { "action": "chat", "messages": [...] }',
-          tts: 'POST dengan body: { "action": "tts", "text": "...", "voiceId": "..." }',
-          test: 'POST dengan body: { "action": "test" }'
-        },
         timestamp: new Date().toISOString()
       })
     };
@@ -42,7 +47,6 @@ exports.handler = async (event) => {
   // 3. HANDLE POST (Logic utama)
   if (event.httpMethod === 'POST') {
     try {
-      // Parse request body
       let body;
       try {
         body = JSON.parse(event.body);
@@ -55,8 +59,6 @@ exports.handler = async (event) => {
       }
 
       const { action, messages, text, voiceId } = body;
-
-      // Ambil API key dari environment variables Netlify
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
       const ELEVEN_API_KEY = process.env.ELEVEN_LABS_KEY;
 
@@ -70,8 +72,7 @@ exports.handler = async (event) => {
             message: 'Function is working!',
             environment: {
               groqKeyExists: !!GROQ_API_KEY,
-              elevenKeyExists: !!ELEVEN_API_KEY,
-              nodeVersion: process.version
+              elevenKeyExists: !!ELEVEN_API_KEY
             }
           })
         };
@@ -79,20 +80,17 @@ exports.handler = async (event) => {
 
       // ========== ACTION: CHAT (Groq API) ==========
       if (action === 'chat') {
-        // Validasi API key
         if (!GROQ_API_KEY) {
           return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-              error: 'GROQ_API_KEY tidak diset di environment variables Netlify!',
-              solution: 'Tambahkan GROQ_API_KEY di Site Settings → Environment Variables'
+              error: 'GROQ_API_KEY tidak diset di environment variables!'
             })
           };
         }
 
-        // Validasi messages
-        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        if (!messages || !Array.isArray(messages)) {
           return {
             statusCode: 400,
             headers,
@@ -100,135 +98,94 @@ exports.handler = async (event) => {
           };
         }
 
-        try {
-          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${GROQ_API_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'llama-3.3-70b-versatile',
-              messages: messages,
-              temperature: 1.4,
-              max_tokens: 150,
-              top_p: 0.95
-            })
-          });
+        // PAKE FETCH BAWAAN (Node.js 18+)
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: messages,
+            temperature: 1.4,
+            max_tokens: 150
+          })
+        });
 
-          const data = await response.json();
+        const data = await response.json();
 
-          if (!response.ok) {
-            console.error('Groq API Error:', data);
-            return {
-              statusCode: response.status,
-              headers,
-              body: JSON.stringify({ 
-                error: data.error?.message || 'Groq API error',
-                details: data
-              })
-            };
-          }
-
+        if (!response.ok) {
           return {
-            statusCode: 200,
+            statusCode: response.status,
             headers,
-            body: JSON.stringify(data)
-          };
-        } catch (error) {
-          console.error('Fetch error:', error);
-          return {
-            statusCode: 502,
-            headers,
-            body: JSON.stringify({ error: `Network error: ${error.message}` })
+            body: JSON.stringify({ error: data.error?.message || 'Groq API error' })
           };
         }
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(data)
+        };
       }
 
       // ========== ACTION: TTS (ElevenLabs API) ==========
       if (action === 'tts') {
-        // Validasi API key
         if (!ELEVEN_API_KEY) {
           return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-              error: 'ELEVEN_LABS_KEY tidak diset di environment variables Netlify!',
-              solution: 'Tambahkan ELEVEN_LABS_KEY di Site Settings → Environment Variables'
+              error: 'ELEVEN_LABS_KEY tidak diset di environment variables!'
             })
           };
         }
 
-        // Validasi input
-        if (!text || typeof text !== 'string') {
+        if (!text || !voiceId) {
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: 'Text string required' })
+            body: JSON.stringify({ error: 'Text and voiceId required' })
           };
         }
 
-        if (!voiceId) {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': ELEVEN_API_KEY
+          },
+          body: JSON.stringify({
+            text: text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: {
+              stability: 0.20,
+              similarity_boost: 0.80
+            }
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
           return {
-            statusCode: 400,
+            statusCode: response.status,
             headers,
-            body: JSON.stringify({ error: 'Voice ID required' })
+            body: JSON.stringify({ error: `ElevenLabs error: ${errorText}` })
           };
         }
 
-        try {
-          const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-            method: 'POST',
-            headers: {
-              'Accept': 'audio/mpeg',
-              'Content-Type': 'application/json',
-              'xi-api-key': ELEVEN_API_KEY
-            },
-            body: JSON.stringify({
-              text: text,
-              model_id: 'eleven_multilingual_v2',
-              voice_settings: {
-                stability: 0.20,
-                similarity_boost: 0.80,
-                style: 0.9,
-                use_speaker_boost: true
-              }
-            })
-          });
+        const audioBuffer = await response.arrayBuffer();
+        const base64Audio = Buffer.from(audioBuffer).toString('base64');
 
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('ElevenLabs Error:', errorText);
-            return {
-              statusCode: response.status,
-              headers,
-              body: JSON.stringify({ error: `ElevenLabs error: ${errorText}` })
-            };
-          }
-
-          const audioBuffer = await response.arrayBuffer();
-          const base64Audio = Buffer.from(audioBuffer).toString('base64');
-
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ 
-              audio: base64Audio,
-              contentType: 'audio/mpeg',
-              length: base64Audio.length
-            })
-          };
-        } catch (error) {
-          console.error('TTS Fetch error:', error);
-          return {
-            statusCode: 502,
-            headers,
-            body: JSON.stringify({ error: `Network error: ${error.message}` })
-          };
-        }
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ audio: base64Audio })
+        };
       }
 
-      // Unknown action
       return {
         statusCode: 400,
         headers,
@@ -238,22 +195,18 @@ exports.handler = async (event) => {
         })
       };
     } catch (error) {
-      console.error('Unhandled error:', error);
+      console.error('Error:', error);
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: `Internal server error: ${error.message}` })
+        body: JSON.stringify({ error: error.message })
       };
     }
   }
 
-  // 4. HANDLE METHOD LAINNYA (PUT, DELETE, etc)
   return {
     statusCode: 405,
     headers,
-    body: JSON.stringify({ 
-      error: 'Method not allowed',
-      allowed_methods: ['GET', 'POST', 'OPTIONS']
-    })
+    body: JSON.stringify({ error: 'Method not allowed' })
   };
 };
