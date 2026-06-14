@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>RAJA AI - VTuber Professional Streamer</title>
+    <title>RAJA AI - GTA San Andreas Style (3 Mode: Idle/Talk/Angry)</title>
     <style>
         * {
             margin: 0;
@@ -228,7 +228,7 @@
             z-index: 10;
             border: 1px solid #ff6b6b;
             font-family: monospace;
-            max-width: 300px;
+            max-width: 350px;
         }
 
         .character-name {
@@ -246,54 +246,38 @@
             border: 1px solid #ff6b6b;
         }
 
-        .model-url-input {
+        .animation-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            z-index: 10;
+            border: 1px solid #ffaa88;
+            font-weight: bold;
+        }
+
+        .emotion-badge {
             position: fixed;
             top: 80px;
-            left: 20px;
-            background: rgba(0,0,0,0.85);
+            right: 20px;
+            background: rgba(0,0,0,0.8);
             backdrop-filter: blur(10px);
-            padding: 12px 18px;
-            border-radius: 20px;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: bold;
             z-index: 10;
-            border: 1px solid #ff6b6b;
-            pointer-events: auto;
-            width: 300px;
-        }
-
-        .model-url-input label {
-            color: #ff6b6b;
-            font-size: 11px;
-            display: block;
-            margin-bottom: 6px;
-        }
-
-        .model-url-input input {
-            width: 100%;
-            padding: 8px 12px;
-            border-radius: 20px;
-            border: none;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            font-size: 11px;
-        }
-
-        .model-url-input input:focus {
-            outline: none;
-            border: 1px solid #ff6b6b;
-        }
-
-        .model-url-input button {
-            margin-top: 8px;
-            padding: 6px 12px;
-            font-size: 11px;
-            background: #ff6b6b;
-            width: 100%;
-            justify-content: center;
+            border: 2px solid;
+            transition: all 0.3s;
         }
 
         @media (max-width: 768px) {
             .chat-history { width: 270px; }
-            .model-url-input { width: 250px; top: 70px; }
+            .emotion-badge { top: 70px; font-size: 11px; }
         }
     </style>
 </head>
@@ -310,17 +294,10 @@
         </div>
         <div class="chat-messages" id="chatMessages">
             <div class="chat-message chat-msg-ai">
-                <span class="msg-name">🎙️ RAJA AI</span>
-                <div class="msg-text">Selamat datang di livestream! Upload GLB atau masukin URL untuk mulai.</div>
+                <span class="msg-name">🎮 RAJA AI</span>
+                <div class="msg-text">Yo! Loading karakter 3D dengan 3 mode ekspresi: santai, ngobrol, dan marah!</div>
             </div>
         </div>
-    </div>
-    
-    <div class="model-url-input">
-        <label>📁 Pilih file GLB atau masukin URL:</label>
-        <input type="file" id="glbFileInput" accept=".glb,.gltf">
-        <input type="text" id="modelUrlInput" placeholder="Atau URL: https://.../model.glb" style="margin-top: 8px;">
-        <button id="loadModelBtn">🔄 Load Model</button>
     </div>
     
     <div class="subtitle-area">
@@ -340,11 +317,15 @@
                 <button id="voiceBella">💁 INANG</button>
                 <button id="voiceDorothy">🔥 SITI</button>
             </div>
+            <button id="forceAngryBtn" style="background:#ff4444;">😠 FORCE ANGRY</button>
+            <button id="forceIdleBtn" style="background:#44ff44;">😊 FORCE IDLE</button>
         </div>
     </div>
     
-    <div class="character-name">🎙️ RAJA AI · LIVE STREAMER</div>
-    <div class="status-indicator" id="status">📁 Pilih file GLB untuk mulai</div>
+    <div class="character-name">🎮 RAJA AI · GTA STYLE</div>
+    <div class="status-indicator" id="status">🔄 Loading 3D models...</div>
+    <div class="animation-status" id="animStatus">⚪ IDLE MODE</div>
+    <div class="emotion-badge" id="emotionBadge" style="border-color: #88ff88; color: #88ff88;">😊 MODE: SANTAI</div>
 
     <script type="importmap">
         {
@@ -357,8 +338,15 @@
 
     <script type="module">
         import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+        
+        // ============ KONFIGURASI PATH FILE FBX ============
+        // GANTI PATH INI SESUAI DENGAN LOKASI FILE FBX ANDA
+        const IDLE_FBX_PATH = 'models/anime-idle.fbx';
+        const TALK_FBX_PATH = 'models/talking.fbx';
+        const ANGRY_FBX_PATH = 'models/angry.fbx';
+        // ===================================================
         
         // Setup
         const container = document.getElementById('canvas-container');
@@ -382,372 +370,390 @@
         controls.autoRotate = false;
         controls.enableZoom = true;
         controls.enablePan = true;
-        controls.zoomSpeed = 1;
         controls.target.set(0, 1.2, 0);
         
-        // Lighting - Professional studio lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // GTA Style lighting
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
         scene.add(ambientLight);
-        
-        // Key light (main)
-        const keyLight = new THREE.DirectionalLight(0xffccaa, 1.2);
+        const keyLight = new THREE.DirectionalLight(0xffcc88, 1.0);
         keyLight.position.set(1.5, 2.5, 2);
         keyLight.castShadow = true;
         scene.add(keyLight);
-        
-        // Fill light
-        const fillLight = new THREE.PointLight(0x88aaff, 0.4);
+        const fillLight = new THREE.PointLight(0x6688aa, 0.4);
         fillLight.position.set(1, 1.2, 1.5);
         scene.add(fillLight);
-        
-        // Rim light (backlight)
-        const rimLight = new THREE.PointLight(0xffaa88, 0.5);
+        const rimLight = new THREE.PointLight(0xffaa66, 0.5);
         rimLight.position.set(0, 1.5, -2);
         scene.add(rimLight);
         
-        // Soft fill from below
-        const bottomFill = new THREE.PointLight(0xccaa88, 0.3);
-        bottomFill.position.set(0, -0.5, 0);
-        scene.add(bottomFill);
+        // Red light for angry mode
+        const angryLight = new THREE.PointLight(0xff3300, 0);
+        angryLight.position.set(1, 1.5, 1);
+        scene.add(angryLight);
         
-        // Simple ground shadow receiver
         const gridHelper = new THREE.GridHelper(8, 20, 0xffaa88, 0x443366);
         gridHelper.position.y = -0.9;
         gridHelper.material.transparent = true;
-        gridHelper.material.opacity = 0.25;
+        gridHelper.material.opacity = 0.2;
         scene.add(gridHelper);
         
-        // Particles - subtle sparkles (like studio atmosphere)
-        const particles = [];
-        for (let i = 0; i < 150; i++) {
-            const material = new THREE.MeshStandardMaterial({ color: 0xffaa66, emissive: 0x442200 });
-            const particleGeo = new THREE.SphereGeometry(0.01, 6, 6);
-            const particle = new THREE.Mesh(particleGeo, material);
-            particle.userData = {
-                speedY: 0.001 + Math.random() * 0.002,
-                originalX: (Math.random() - 0.5) * 6,
-                originalY: Math.random() * 2 - 0.5,
-                originalZ: (Math.random() - 0.5) * 5
-            };
-            particle.position.set(particle.userData.originalX, particle.userData.originalY, particle.userData.originalZ);
-            scene.add(particle);
-            particles.push(particle);
-        }
+        const shadowPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(6, 6),
+            new THREE.ShadowMaterial({ opacity: 0.4, color: 0x000000, transparent: true, side: THREE.DoubleSide })
+        );
+        shadowPlane.rotation.x = -Math.PI / 2;
+        shadowPlane.position.y = -0.85;
+        shadowPlane.receiveShadow = true;
+        scene.add(shadowPlane);
         
-        // GLB Model variables
+        // Model variables
+        let idleModel = null;
+        let talkModel = null;
+        let angryModel = null;
         let currentModel = null;
-        let mixer = null;
+        let idleMixer = null;
+        let talkMixer = null;
+        let angryMixer = null;
+        let currentMixer = null;
+        
+        // State management
+        let currentEmotion = 'idle'; // 'idle', 'talking', 'angry'
         let isSpeaking = false;
-        let speakIntensity = 0;
-        let gestureTime = 0;
-        
-        // Store original transforms
-        let originalPos = new THREE.Vector3();
-        let originalRot = new THREE.Euler();
-        let originalScale = new THREE.Vector3(1, 1, 1);
-        
-        function updateStatus(msg, isError = false) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerHTML = msg;
-            statusDiv.style.color = isError ? '#ff0000' : '#ff6b6b';
-            console.log(msg);
-        }
-        
-        // ============ PROFESSIONAL VTUBER/REPORTER GESTURES ============
-        // No bouncing, no random waving, just natural presenter movements
-        function applyProfessionalGestures(deltaTime) {
-            if (!currentModel) return;
-            
-            gestureTime += deltaTime;
-            
-            const isAnimating = isSpeaking;
-            
-            if (isAnimating) {
-                // Smooth intensity ramping
-                speakIntensity = Math.min(speakIntensity + deltaTime * 4, 1);
-                
-                // ===== BODY MOVEMENT =====
-                // Slight forward lean (like reporter explaining something)
-                currentModel.rotation.x = originalRot.x - 0.03 * speakIntensity;
-                
-                // Very subtle body rotation (like presenter turning slightly to audience)
-                currentModel.rotation.y = originalRot.y + Math.sin(gestureTime * 0.8) * 0.01 * speakIntensity;
-                
-                // No side-to-side sway, no bounce
-                currentModel.rotation.z = originalRot.z;
-                
-                // ===== HEAD MOVEMENT (like nodding while explaining) =====
-                currentModel.traverse((node) => {
-                    const name = node.name.toLowerCase();
-                    
-                    if (name.includes('head') || name.includes('neck')) {
-                        // Natural head nod like a presenter
-                        node.rotation.x = (node.userData?.originalX || 0) + Math.sin(gestureTime * 2.5) * 0.03 * speakIntensity;
-                        node.rotation.y = (node.userData?.originalY || 0) + Math.sin(gestureTime * 1.5) * 0.04 * speakIntensity;
-                        node.rotation.z = (node.userData?.originalZ || 0) + Math.sin(gestureTime * 2) * 0.01 * speakIntensity;
-                    }
-                    
-                    // ===== RIGHT ARM (main gesture - like explaining points) =====
-                    if ((name.includes('right') || name.includes('r_')) && (name.includes('arm') || name.includes('hand'))) {
-                        const gesture = Math.sin(gestureTime * 3);
-                        // Open hand gesture like making a point
-                        node.rotation.z = (node.userData?.originalZ || 0) - 0.25 * speakIntensity + gesture * 0.12 * speakIntensity;
-                        node.rotation.x = (node.userData?.originalX || 0) + 0.08 * speakIntensity;
-                    }
-                    
-                    // ===== LEFT ARM (supporting gesture, minimal) =====
-                    if ((name.includes('left') || name.includes('l_')) && (name.includes('arm') || name.includes('hand'))) {
-                        const gesture = Math.sin(gestureTime * 3 + 1);
-                        // Left hand only follows slightly, not dominant
-                        node.rotation.z = (node.userData?.originalZ || 0) + gesture * 0.05 * speakIntensity;
-                        node.rotation.x = (node.userData?.originalX || 0) + 0.03 * speakIntensity;
-                    }
-                });
-                
-            } else {
-                // IDLE MODE - Professional, calm stance
-                speakIntensity = Math.max(speakIntensity - deltaTime * 5, 0);
-                
-                // ===== IDLE BREATHING (subtle, like real person standing) =====
-                const breath = Math.sin(gestureTime * 1.8) * 0.003;
-                currentModel.position.y = originalPos.y + breath;
-                
-                // Return to upright posture
-                currentModel.rotation.x += (originalRot.x - currentModel.rotation.x) * 0.1;
-                currentModel.rotation.y += (originalRot.y - currentModel.rotation.y) * 0.05;
-                currentModel.rotation.z += (originalRot.z - currentModel.rotation.z) * 0.1;
-                
-                // ===== IDLE HEAD MOVEMENT (occasional small nod, like listening) =====
-                currentModel.traverse((node) => {
-                    const name = node.name.toLowerCase();
-                    
-                    if (name.includes('head') || name.includes('neck')) {
-                        // Very subtle idle movement - like a person standing naturally
-                        const idleNod = Math.sin(gestureTime * 0.7) * 0.01;
-                        node.rotation.x = (node.userData?.originalX || 0) + idleNod;
-                        node.rotation.y = (node.userData?.originalY || 0) + Math.sin(gestureTime * 0.4) * 0.008;
-                        node.rotation.z = (node.userData?.originalZ || 0);
-                    }
-                    
-                    // Return arms to relaxed position
-                    if ((name.includes('arm') || name.includes('hand'))) {
-                        if (node.userData?.originalZ !== undefined) {
-                            node.rotation.z += (node.userData.originalZ - node.rotation.z) * 0.08;
-                        }
-                        if (node.userData?.originalX !== undefined) {
-                            node.rotation.x += (node.userData.originalX - node.rotation.x) * 0.08;
-                        }
-                    }
-                });
-            }
-        }
+        let modelsLoaded = false;
+        let switchTimeout = null;
+        let forcedAngryUntil = 0;
         
         // Store original bone rotations
-        function storeOriginalTransforms(model) {
-            originalPos.copy(model.position);
-            originalRot.copy(model.rotation);
-            originalScale.copy(model.scale);
-            
-            model.traverse((node) => {
-                if (node.isBone || node.isMesh) {
-                    node.userData.originalX = node.rotation.x;
-                    node.userData.originalY = node.rotation.y;
-                    node.userData.originalZ = node.rotation.z;
-                }
-            });
-            console.log("✅ Original transforms stored");
-        }
+        let originalBoneRotations = new Map();
+        let modelOriginalY = 0;
         
-        // Load GLB from File
-        function loadModelFromFile(file) {
-            if (!file) return;
-            
-            updateStatus("🔄 Loading: " + file.name + " (" + (file.size/1024/1024).toFixed(2) + " MB)");
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const arrayBuffer = e.target.result;
-                const loader = new GLTFLoader();
-                
-                if (currentModel) {
-                    scene.remove(currentModel);
-                    if (mixer) mixer.stopAllAction();
-                    currentModel = null;
-                }
-                
-                loader.parse(arrayBuffer, '', (gltf) => {
-                    currentModel = gltf.scene;
-                    
-                    // Auto-scale to fit camera view
-                    const box = new THREE.Box3().setFromObject(currentModel);
-                    const size = box.getSize(new THREE.Vector3());
-                    const center = box.getCenter(new THREE.Vector3());
-                    const targetHeight = 1.6;
-                    const scale = targetHeight / size.y;
-                    currentModel.scale.set(scale, scale, scale);
-                    
-                    // Position at ground level
-                    const minY = box.min.y * scale;
-                    currentModel.position.y = -minY;
-                    currentModel.position.x = -center.x * scale;
-                    currentModel.position.z = -center.z * scale;
-                    
-                    // Enable shadows
-                    currentModel.traverse((node) => {
-                        if (node.isMesh) {
-                            node.castShadow = true;
-                            node.receiveShadow = true;
-                        }
-                    });
-                    
-                    scene.add(currentModel);
-                    
-                    // Play default animation if exists
-                    if (gltf.animations && gltf.animations.length > 0) {
-                        mixer = new THREE.AnimationMixer(currentModel);
-                        const action = mixer.clipAction(gltf.animations[0]);
-                        action.play();
-                    }
-                    
-                    storeOriginalTransforms(currentModel);
-                    controls.target.set(0, 1.2, 0);
-                    controls.update();
-                    
-                    updateStatus("✅ Model loaded! VTuber mode aktif - gerakan profesional seperti presenter!");
-                    
-                }, (error) => {
-                    console.error("Parse error:", error);
-                    updateStatus("❌ Gagal load GLB: " + error.message, true);
-                });
-            };
-            reader.onerror = () => {
-                updateStatus("❌ Gagal baca file!", true);
-            };
-            reader.readAsArrayBuffer(file);
-        }
+        // Emotion keywords untuk deteksi otomatis
+        const ANGRY_KEYWORDS = [
+            'marah', 'geram', 'kesal', 'jengkel', 'sial', 'brengsek', 'bangsat',
+            'tolol', 'bodoh', 'goblok', 'idiot', 'bego', 'dasar', 'kurang ajar',
+            'ngentot', 'memek', 'kontol', 'anjing', 'setan', 'kampret',
+            'fuck', 'shit', 'damn', 'hell', 'anger', 'mad', 'pissed'
+        ];
         
-        // Load GLB from URL
-        function loadModelFromUrl(url) {
-            updateStatus("🔄 Loading dari URL...");
-            const loader = new GLTFLoader();
+        const CALM_KEYWORDS = [
+            'maaf', 'sabar', 'tenang', 'damai', 'senang', 'bahagia'
+        ];
+        
+        // ============ FUNGSI LOAD MODELS ============
+        async function loadModels() {
+            updateStatus("🔄 Loading 3 mode animations...");
             
-            if (currentModel) {
-                scene.remove(currentModel);
-                if (mixer) mixer.stopAllAction();
-                currentModel = null;
-            }
+            const loader = new FBXLoader();
             
-            loader.load(url, (gltf) => {
-                currentModel = gltf.scene;
+            try {
+                const [idleFbx, talkFbx, angryFbx] = await Promise.all([
+                    new Promise((resolve, reject) => loader.load(IDLE_FBX_PATH, resolve, undefined, reject)),
+                    new Promise((resolve, reject) => loader.load(TALK_FBX_PATH, resolve, undefined, reject)),
+                    new Promise((resolve, reject) => loader.load(ANGRY_FBX_PATH, resolve, undefined, reject))
+                ]);
                 
-                const box = new THREE.Box3().setFromObject(currentModel);
-                const size = box.getSize(new THREE.Vector3());
-                const center = box.getCenter(new THREE.Vector3());
-                const targetHeight = 1.6;
-                const scale = targetHeight / size.y;
-                currentModel.scale.set(scale, scale, scale);
+                // Process all models
+                idleModel = idleFbx;
+                processModel(idleModel, 'idle');
                 
-                const minY = box.min.y * scale;
-                currentModel.position.y = -minY;
-                currentModel.position.x = -center.x * scale;
-                currentModel.position.z = -center.z * scale;
+                talkModel = talkFbx;
+                processModel(talkModel, 'talk');
                 
-                currentModel.traverse((node) => {
-                    if (node.isMesh) {
-                        node.castShadow = true;
-                        node.receiveShadow = true;
-                    }
-                });
+                angryModel = angryFbx;
+                processModel(angryModel, 'angry');
                 
+                // Sync transforms
+                syncModelTransforms();
+                
+                // Start with idle model
+                if (currentModel) scene.remove(currentModel);
+                currentModel = idleModel;
+                currentMixer = idleMixer;
                 scene.add(currentModel);
                 
-                if (gltf.animations && gltf.animations.length > 0) {
-                    mixer = new THREE.AnimationMixer(currentModel);
-                    const action = mixer.clipAction(gltf.animations[0]);
-                    action.play();
+                modelsLoaded = true;
+                updateStatus("✅ 3 mode loaded! Santai, Ngobrol, dan Marah siap!");
+                updateEmotionUI('idle');
+                
+                // Start animation loop
+                startAnimationLoop();
+                
+                addChatMessage('ai', 'Yo! Gue sekarang punya 3 mode: santai, ngobrol, dan marah. Coba bikin gue emosi, liat bedanya!', false);
+                
+            } catch (error) {
+                console.error("Error loading models:", error);
+                updateStatus(`❌ Gagal load: ${error.message}. Cek path file FBX!`, true);
+                addChatMessage('ai', `Error: File FBX tidak ditemukan!\n- ${IDLE_FBX_PATH}\n- ${TALK_FBX_PATH}\n- ${ANGRY_FBX_PATH}`, false);
+            }
+        }
+        
+        function processModel(model, type) {
+            // Scale to reasonable height
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            const center = box.getCenter(new THREE.Vector3());
+            const targetHeight = 1.6;
+            const scale = targetHeight / size.y;
+            model.scale.set(scale, scale, scale);
+            
+            const minY = box.min.y * scale;
+            model.position.y = -minY;
+            model.position.x = -center.x * scale;
+            model.position.z = -center.z * scale;
+            modelOriginalY = model.position.y;
+            
+            // Enable shadows
+            model.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
                 }
-                
-                storeOriginalTransforms(currentModel);
-                controls.target.set(0, 1.2, 0);
-                controls.update();
-                
-                updateStatus("✅ Model loaded! VTuber professional mode aktif!");
-                
-            }, (xhr) => {
-                const percent = Math.floor((xhr.loaded / xhr.total) * 100);
-                updateStatus(`📥 Loading: ${percent}%`);
-            }, (error) => {
-                console.error("Load error:", error);
-                updateStatus("❌ Gagal load: " + error.message, true);
+                if (node.isBone) {
+                    originalBoneRotations.set(node, {
+                        x: node.rotation.x,
+                        y: node.rotation.y,
+                        z: node.rotation.z
+                    });
+                }
             });
+            
+            // Create animation mixer
+            if (model.animations && model.animations.length > 0) {
+                if (type === 'idle') {
+                    idleMixer = new THREE.AnimationMixer(model);
+                    idleMixer.clipAction(model.animations[0]).play();
+                } else if (type === 'talk') {
+                    talkMixer = new THREE.AnimationMixer(model);
+                    talkMixer.clipAction(model.animations[0]).play();
+                } else if (type === 'angry') {
+                    angryMixer = new THREE.AnimationMixer(model);
+                    angryMixer.clipAction(model.animations[0]).play();
+                }
+            }
         }
         
-        // Event listeners
-        document.getElementById('loadModelBtn').addEventListener('click', () => {
-            const fileInput = document.getElementById('glbFileInput');
-            const urlInput = document.getElementById('modelUrlInput');
+        function syncModelTransforms() {
+            if (idleModel && talkModel && angryModel) {
+                talkModel.position.copy(idleModel.position);
+                talkModel.scale.copy(idleModel.scale);
+                talkModel.rotation.copy(idleModel.rotation);
+                
+                angryModel.position.copy(idleModel.position);
+                angryModel.scale.copy(idleModel.scale);
+                angryModel.rotation.copy(idleModel.rotation);
+            }
+        }
+        
+        // ============ EMOTION SWITCHING ============
+        function switchToEmotion(emotion, forceRestart = true) {
+            if (!modelsLoaded) return;
+            if (currentEmotion === emotion && !forceRestart) return;
             
-            if (fileInput.files && fileInput.files.length > 0) {
-                loadModelFromFile(fileInput.files[0]);
-            } else if (urlInput.value.trim()) {
-                loadModelFromUrl(urlInput.value.trim());
+            let newModel = null;
+            let newMixer = null;
+            let emotionName = '';
+            let borderColor = '';
+            let textColor = '';
+            let icon = '';
+            
+            switch(emotion) {
+                case 'idle':
+                    newModel = idleModel;
+                    newMixer = idleMixer;
+                    emotionName = 'SANTAI';
+                    icon = '😊';
+                    borderColor = '#88ff88';
+                    textColor = '#88ff88';
+                    break;
+                case 'talking':
+                    newModel = talkModel;
+                    newMixer = talkMixer;
+                    emotionName = 'NGOBROL';
+                    icon = '💬';
+                    borderColor = '#ffaa44';
+                    textColor = '#ffaa44';
+                    break;
+                case 'angry':
+                    newModel = angryModel;
+                    newMixer = angryMixer;
+                    emotionName = 'MARAH';
+                    icon = '😠';
+                    borderColor = '#ff4444';
+                    textColor = '#ff4444';
+                    break;
+                default:
+                    return;
+            }
+            
+            if (!newModel) {
+                console.warn(`Model for emotion ${emotion} not loaded`);
+                return;
+            }
+            
+            const currentRot = currentModel?.rotation.y || 0;
+            const currentPos = currentModel?.position.clone() || new THREE.Vector3(0, modelOriginalY, 0);
+            
+            if (currentModel) scene.remove(currentModel);
+            if (currentMixer && forceRestart) currentMixer?.stopAllAction();
+            
+            currentModel = newModel;
+            currentMixer = newMixer;
+            currentModel.rotation.y = currentRot;
+            currentModel.position.copy(currentPos);
+            scene.add(currentModel);
+            
+            currentEmotion = emotion;
+            
+            // Restart animation
+            if (newMixer && newModel.animations?.length > 0 && forceRestart) {
+                newMixer.stopAllAction();
+                newMixer.clipAction(newModel.animations[0]).reset().play();
+            }
+            
+            updateEmotionUI(emotion);
+            
+            // Lighting effect for angry mode
+            if (emotion === 'angry') {
+                angryLight.intensity = 0.8;
+                document.body.style.animation = 'shake 0.2s ease-in-out 0s 2';
+                setTimeout(() => {
+                    document.body.style.animation = '';
+                }, 500);
             } else {
-                updateStatus("❌ Pilih file GLB atau masukin URL!", true);
+                angryLight.intensity = 0;
             }
-        });
-        
-        // Animation loop
-        let lastTime = 0;
-        function animate() {
-            const now = performance.now();
-            let delta = Math.min(0.033, (now - lastTime) / 1000);
-            lastTime = now;
             
-            requestAnimationFrame(animate);
-            
-            if (mixer) mixer.update(delta);
-            applyProfessionalGestures(delta);
-            
-            // Subtle particle animation
-            particles.forEach(p => {
-                p.position.y += p.userData.speedY;
-                if (p.position.y > 1.5) p.position.y = -0.5;
-            });
-            
-            controls.update();
-            renderer.render(scene, camera);
+            console.log(`🎭 Switched to ${emotionName} mode`);
         }
-        animate();
         
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-        
-        // ============ CHAT & SPEECH FUNCTIONS ============
-        window.triggerSpeaking = function(speaking, text = '', isUser = false) {
-            isSpeaking = speaking;
-            const subtitleBox = document.getElementById('subtitleBox');
-            const subtitleText = document.getElementById('subtitleText');
+        function updateEmotionUI(emotion) {
+            const badge = document.getElementById('emotionBadge');
+            const animStatus = document.getElementById('animStatus');
             
-            if (speaking && text) {
-                subtitleText.innerHTML = text;
-                subtitleBox.style.display = 'flex';
-                clearTimeout(window.subtitleTimeout);
-                window.subtitleTimeout = setTimeout(() => {
-                    if (!isSpeaking) subtitleBox.style.display = 'none';
-                }, 4000);
-            } else if (!speaking) {
-                setTimeout(() => { if (!isSpeaking) subtitleBox.style.display = 'none'; }, 500);
+            let text = '';
+            let icon = '';
+            let color = '';
+            
+            switch(emotion) {
+                case 'idle':
+                    text = 'SANTAI';
+                    icon = '😊';
+                    color = '#88ff88';
+                    animStatus.innerHTML = '⚪ IDLE MODE (anime-idle.fbx)';
+                    animStatus.style.color = '#88ff88';
+                    animStatus.style.borderColor = '#88ff88';
+                    break;
+                case 'talking':
+                    text = 'NGOBROL';
+                    icon = '💬';
+                    color = '#ffaa44';
+                    animStatus.innerHTML = '🎤 TALKING MODE (talking.fbx)';
+                    animStatus.style.color = '#ffaa44';
+                    animStatus.style.borderColor = '#ffaa44';
+                    break;
+                case 'angry':
+                    text = 'MARAH';
+                    icon = '😠';
+                    color = '#ff4444';
+                    animStatus.innerHTML = '🔥 ANGRY MODE (angry.fbx)';
+                    animStatus.style.color = '#ff4444';
+                    animStatus.style.borderColor = '#ff4444';
+                    break;
             }
-        };
+            
+            badge.innerHTML = `${icon} MODE: ${text}`;
+            badge.style.borderColor = color;
+            badge.style.color = color;
+        }
         
-        function addChatMessage(sender, message, isUser = false) {
+        // Deteksi emosi dari teks
+        function detectEmotionFromText(text) {
+            const lowerText = text.toLowerCase();
+            
+            // Cek kata-kata marah
+            for (let keyword of ANGRY_KEYWORDS) {
+                if (lowerText.includes(keyword)) {
+                    return 'angry';
+                }
+            }
+            
+            // Cek kata-kata kalem (bisa balikin ke normal)
+            for (let keyword of CALM_KEYWORDS) {
+                if (lowerText.includes(keyword)) {
+                    return 'idle';
+                }
+            }
+            
+            return null;
+        }
+        
+        // ============ SPEAKING TRIGGER ============
+        function startSpeaking(emotion = 'talking') {
+            if (isSpeaking) return;
+            isSpeaking = true;
+            switchToEmotion(emotion, true);
+        }
+        
+        function stopSpeaking() {
+            if (!isSpeaking) return;
+            isSpeaking = false;
+            
+            // Kembali ke idle setelah selesai bicara
+            if (switchTimeout) clearTimeout(switchTimeout);
+            switchTimeout = setTimeout(() => {
+                if (!isSpeaking && currentEmotion !== 'idle') {
+                    switchToEmotion('idle', true);
+                }
+            }, 500);
+        }
+        
+        // ============ ANIMATION LOOP ============
+        let lastTime = 0;
+        let animationId = null;
+        
+        function startAnimationLoop() {
+            if (animationId) return;
+            
+            function animate() {
+                const now = performance.now();
+                let delta = Math.min(0.033, (now - lastTime) / 1000);
+                lastTime = now;
+                
+                // Update animation mixers
+                if (idleMixer) idleMixer.update(delta);
+                if (talkMixer) talkMixer.update(delta);
+                if (angryMixer) angryMixer.update(delta);
+                
+                controls.update();
+                renderer.render(scene, camera);
+                animationId = requestAnimationFrame(animate);
+            }
+            
+            animate();
+        }
+        
+        // ============ UI FUNCTIONS ============
+        function updateStatus(msg, isError = false) {
+            const statusDiv = document.getElementById('status');
+            if (statusDiv) {
+                statusDiv.innerHTML = msg;
+                statusDiv.style.color = isError ? '#ff0000' : '#ff6b6b';
+            }
+        }
+        
+        function addChatMessage(sender, message, isUser = false, emotion = null) {
             const chatContainer = document.getElementById('chatMessages');
             const msgDiv = document.createElement('div');
             msgDiv.className = `chat-message ${isUser ? 'chat-msg-user' : 'chat-msg-ai'}`;
-            const name = isUser ? '👤 VIEWER' : '🎙️ RAJA AI';
+            let name = isUser ? '👤 VIEWER' : '🎮 RAJA AI';
+            
+            // Tambah emoji berdasarkan emosi
+            if (!isUser && emotion === 'angry') {
+                name = '😠 RAJA AI (MARAH)';
+            } else if (!isUser && emotion === 'talking') {
+                name = '💬 RAJA AI';
+            }
+            
             msgDiv.innerHTML = `<span class="msg-name">${name}</span><div class="msg-text">${escapeHtml(message)}</div>`;
             chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -763,9 +769,36 @@
             });
         }
         
+        // Shake animation CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                75% { transform: translateX(5px); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // ============ EVENT LISTENERS ============
+        document.getElementById('forceAngryBtn')?.addEventListener('click', () => {
+            if (!modelsLoaded) return;
+            switchToEmotion('angry', true);
+            addChatMessage('ai', 'WHAT?! Lu berani-beraninya bikin gue marah?! Awas aja lo! 😠', false, 'angry');
+            setTimeout(() => {
+                if (!isSpeaking) switchToEmotion('idle', true);
+            }, 3000);
+        });
+        
+        document.getElementById('forceIdleBtn')?.addEventListener('click', () => {
+            if (!modelsLoaded) return;
+            switchToEmotion('idle', true);
+            addChatMessage('ai', 'Nah gitu dong, santai aja bro. 😊', false, 'idle');
+        });
+        
         document.getElementById('clearChatBtn').addEventListener('click', () => {
             document.getElementById('chatMessages').innerHTML = '';
-            addChatMessage('ai', 'Live stream berlanjut! Ayo ngobrol!', false);
+            addChatMessage('ai', 'Yo! Chat dibersihin. Santai aja ya!', false);
         });
         
         let chatVisible = true;
@@ -782,21 +815,60 @@
             }
         });
         
-        window.updateSubtitleAndChat = function(text, isAi = true, userMessage = '') {
-            if (isAi) {
-                window.triggerSpeaking(true, text, false);
-                addChatMessage('ai', text, false);
-            } else if (userMessage) {
-                window.triggerSpeaking(true, userMessage, true);
-                addChatMessage('user', userMessage, true);
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // ============ EXPOSE FUNCTIONS FOR VOICE SCRIPT ============
+        window.triggerSpeakingWithEmotion = function(speaking, text = '', emotion = 'talking') {
+            if (!modelsLoaded) return;
+            
+            const subtitleBox = document.getElementById('subtitleBox');
+            const subtitleText = document.getElementById('subtitleText');
+            
+            if (speaking && text) {
+                subtitleText.innerHTML = text;
+                subtitleBox.style.display = 'flex';
+                clearTimeout(window.subtitleTimeout);
+                window.subtitleTimeout = setTimeout(() => {
+                    if (!window.isSpeaking) subtitleBox.style.display = 'none';
+                }, 4000);
+                startSpeaking(emotion);
+            } else if (!speaking) {
+                setTimeout(() => { 
+                    if (!window.isSpeaking) subtitleBox.style.display = 'none'; 
+                }, 500);
+                stopSpeaking();
             }
         };
         
-        updateStatus("📁 Upload file GLB untuk mulai livestream!");
+        window.updateSubtitleAndChatWithEmotion = function(text, isAi = true, userMessage = '', emotion = 'talking') {
+            if (isAi) {
+                window.triggerSpeakingWithEmotion(true, text, emotion);
+                addChatMessage('ai', text, false, emotion);
+            } else if (userMessage) {
+                // Deteksi emosi dari pesan user
+                const detectedEmotion = detectEmotionFromText(userMessage);
+                if (detectedEmotion === 'angry') {
+                    // Kalau user marah, AI juga ikut marah
+                    window.triggerSpeakingWithEmotion(true, userMessage, 'talking');
+                    addChatMessage('user', userMessage, true);
+                } else {
+                    window.triggerSpeakingWithEmotion(true, userMessage, 'talking');
+                    addChatMessage('user', userMessage, true);
+                }
+            }
+        };
+        
+        // AUTO START
+        console.log("🚀 Auto loading models with 3 emotions");
+        loadModels();
     </script>
 
     <script>
-        // Voice and AI functions
+        // Voice and AI functions with emotion detection
         let selectedVoice = localStorage.getItem('raja_voice') || 'Adam';
         let isListening = false;
         let isProcessing = false;
@@ -806,13 +878,33 @@
             Adam: 'pNInz6obpgDQGcFmaJgB',
             Antoni: 'ErXwobaYiN019PkySvjV',
             Bella: 'EXAVITQu4vr4xnSDxMaL',
-            Dorothy: 'THmdRseBiCqzMsZgjN1N'
+            Dorothy: '3321Alera3fXjEWjjbAX'
         };
         const VOICE_NAMES = { Adam: 'Maulana', Antoni: 'Ulul', Bella: 'Inang', Dorothy: 'Siti' };
         
-        const SYSTEM_PROMPT = `Lo adalah host livestream profesional bernama RAJA AI. Gaya bicara lo seperti presenter TV atau VTuber chatting stream. Lo ramah, profesional, dan engaging. PAKAI bahasa Indonesia yang baik tapi santai. KALO ada yang nanya, jawab dengan antusias seperti host wawancara. JANGAN kasar, JANGAN pake kata-kata kotor. Lo adalah streamer yang asyik ditonton.`;
+        // Keywords for anger detection
+        const ANGRY_KEYWORDS = [
+            'marah', 'geram', 'kesal', 'jengkel', 'sial', 'brengsek', 'bangsat',
+            'tolol', 'bodoh', 'goblok', 'idiot', 'bego', 'dasar', 'kurang ajar',
+            'ngentot', 'memek', 'kontol', 'anjing', 'setan', 'kampret',
+            'fuck', 'shit', 'damn', 'hell', 'anger', 'mad', 'pissed'
+        ];
+        
+        const SYSTEM_PROMPT_NORMAL = `Lo adalah karakter gaya GTA San Andreas. Lo cool, santai, kayak CJ. Gaya ngomong lo pake "Yo", "What's good", "Aight", "Nah mean". Lo friendly dan asyik diajak ngobrol. Respon singkat dan natural aja.`;
+        
+        const SYSTEM_PROMPT_ANGRY = `Lo adalah karakter GTA yang sedang MARAH BESAR! Lo kayak CJ kalo lagi emosi. Lo ngomong pake nada tinggi, kasar, banyak makian khas GTA kayak "What the hell", "Damn", "You stupid", "Fool", "Get outta here". Lo gak sabaran dan gampang triggered. TAPI jangan terlalu vulgar, tetap dalam batas wajar.`;
         
         const FUNCTION_URL = '/.netlify/functions/ai-chat';
+        
+        function detectEmotionFromText(text) {
+            const lowerText = text.toLowerCase();
+            for (let keyword of ANGRY_KEYWORDS) {
+                if (lowerText.includes(keyword)) {
+                    return 'angry';
+                }
+            }
+            return 'normal';
+        }
         
         function updateStatusUI(msg, isError = false) {
             const statusDiv = document.getElementById('status');
@@ -838,14 +930,16 @@
         document.getElementById('voiceDorothy')?.addEventListener('click', () => setActiveVoice('Dorothy'));
         setActiveVoice(selectedVoice);
         
-        async function callGroqAPI(userMessage) {
-            updateStatusUI('💭 Host sedang mikir...');
+        async function callGroqAPI(userMessage, emotion) {
+            updateStatusUI('💭 Karakter mikir...');
+            const systemPrompt = emotion === 'angry' ? SYSTEM_PROMPT_ANGRY : SYSTEM_PROMPT_NORMAL;
+            
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'chat',
-                    messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userMessage }]
+                    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }]
                 })
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -865,13 +959,24 @@
             return new Blob(byteArrays, { type: mimeType });
         }
         
-        async function textToSpeechElevenLabs(text) {
-            updateStatusUI(`🎙️ Host sedang bicara...`);
-            if (window.updateSubtitleAndChat) window.updateSubtitleAndChat(text, true, '');
+        async function textToSpeechElevenLabs(text, emotion) {
+            updateStatusUI(`🎙️ Karakter ${emotion === 'angry' ? 'marah' : 'ngomong'}...`);
+            
+            // Kirim ke fungsi update dengan emotion
+            if (window.updateSubtitleAndChatWithEmotion) {
+                window.updateSubtitleAndChatWithEmotion(text, true, '', emotion === 'angry' ? 'angry' : 'talking');
+            }
+            
             const response = await fetch(FUNCTION_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'tts', text: text, voiceId: VOICE_IDS[selectedVoice] })
+                body: JSON.stringify({ 
+                    action: 'tts', 
+                    text: text, 
+                    voiceId: VOICE_IDS[selectedVoice],
+                    // Tambah parameter untuk kecepatan bicara pas marah
+                    speed: emotion === 'angry' ? 1.2 : 1.0
+                })
             });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
@@ -881,7 +986,9 @@
             return new Promise((resolve, reject) => {
                 audio.onended = () => {
                     URL.revokeObjectURL(audioUrl);
-                    if (window.triggerSpeaking) window.triggerSpeaking(false, '');
+                    if (window.triggerSpeakingWithEmotion) {
+                        window.triggerSpeakingWithEmotion(false, '', 'idle');
+                    }
                     resolve();
                 };
                 audio.onerror = (e) => { URL.revokeObjectURL(audioUrl); reject(e); };
@@ -892,16 +999,26 @@
         async function handleUserSpeech(text) {
             if (isProcessing) return;
             isProcessing = true;
+            
+            // Deteksi emosi dari pesan user
+            const userEmotion = detectEmotionFromText(text);
+            const responseEmotion = userEmotion === 'angry' ? 'angry' : 'normal';
+            
             try {
-                if (window.updateSubtitleAndChat) window.updateSubtitleAndChat('', false, text);
-                const aiResponse = await callGroqAPI(text);
-                await textToSpeechElevenLabs(aiResponse);
-                updateStatusUI('🎤 Klik tombol mikrofon untuk bicara lagi');
+                if (window.updateSubtitleAndChatWithEmotion) {
+                    window.updateSubtitleAndChatWithEmotion('', false, text, userEmotion === 'angry' ? 'angry' : 'talking');
+                }
+                
+                const aiResponse = await callGroqAPI(text, responseEmotion);
+                await textToSpeechElevenLabs(aiResponse, responseEmotion);
+                updateStatusUI('🎤 Klik mikrofon buat ngobrol lagi');
             } catch (error) {
                 console.error(error);
                 updateStatusUI(`❌ Error: ${error.message}`, true);
-                if (window.updateSubtitleAndChat) window.updateSubtitleAndChat(`Maaf, error: ${error.message}`, true, '');
-                if (window.triggerSpeaking) setTimeout(() => window.triggerSpeaking(false), 2000);
+                if (window.updateSubtitleAndChatWithEmotion) {
+                    window.updateSubtitleAndChatWithEmotion(`Error: ${error.message}`, true, '', 'idle');
+                }
+                if (window.triggerSpeakingWithEmotion) setTimeout(() => window.triggerSpeakingWithEmotion(false), 2000);
             } finally {
                 isProcessing = false;
                 const btn = document.getElementById('recordBtn');
@@ -912,9 +1029,9 @@
         }
         
         function startVoiceRecognition() {
-            if (isProcessing) { updateStatusUI('⏳ Host masih bicara, tunggu sebentar...', true); return; }
+            if (isProcessing) { updateStatusUI('⏳ Lagi ngomong, tunggu...', true); return; }
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) { updateStatusUI('❌ Browser tidak support voice recognition', true); return; }
+            if (!SpeechRecognition) { updateStatusUI('❌ Browser gak support voice', true); return; }
             recognition = new SpeechRecognition();
             recognition.lang = 'id-ID';
             recognition.continuous = false;
@@ -924,7 +1041,7 @@
                 const btn = document.getElementById('recordBtn');
                 if (btn) btn.classList.add('recording');
                 const recordText = document.getElementById('recordText');
-                if (recordText) recordText.textContent = 'MENDENGAR...';
+                if (recordText) recordText.textContent = 'DENGERIN...';
                 updateStatusUI('🎤 Silakan bicara...');
             };
             recognition.onresult = (event) => {
@@ -948,13 +1065,13 @@
         }
         
         function toggleRecording() {
-            if (isProcessing) { updateStatusUI('⏳ Tunggu host selesai bicara...', true); return; }
+            if (isProcessing) { updateStatusUI('⏳ Tunggu karakter selesai...', true); return; }
             if (isListening) stopVoiceRecognition();
             else startVoiceRecognition();
         }
         
         document.getElementById('recordBtn')?.addEventListener('click', toggleRecording);
-        updateStatusUI('🎤 Upload GLB, lalu klik mikrofon untuk mulai live!');
+        updateStatusUI('🎤 3 Mode: Santai (anime-idle) | Ngobrol (talking) | Marah (angry)');
     </script>
 </body>
 </html>
