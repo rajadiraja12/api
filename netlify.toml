@@ -6,18 +6,3 @@
   node_bundler = "esbuild"
   directory = "netlify/functions"
 
-# Timeout dinaikkan jadi 30 detik
-[functions."ai-chat"]
-  timeout = 30
-
-# Redirect semua API request ke function
-[[redirects]]
-  from = "/.netlify/functions/ai-chat"
-  to = "/.netlify/functions/ai-chat"
-  status = 200
-
-# Fallback untuk SPA
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
