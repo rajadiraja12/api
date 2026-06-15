@@ -6,3 +6,15 @@
   node_bundler = "esbuild"
   directory = "netlify/functions"
 
+[functions."ai-chat"]
+  timeout = 30
+
+[[redirects]]
+  from = "/.netlify/functions/ai-chat"
+  to = "/.netlify/functions/ai-chat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

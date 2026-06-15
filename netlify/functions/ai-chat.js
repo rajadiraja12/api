@@ -1,17 +1,8 @@
 // netlify/functions/ai-chat.js
-// Untuk Node.js 18+, fetch sudah built-in, gak perlu node-fetch!
-// TAPI kalau mau pake node-fetch, install dulu
-
-// Cara 1: Pake fetch bawaan Node.js 18+ (RECOMMENDED)
-// Gak perlu install apa-apa
-
-// Cara 2: Pake node-fetch (kalau pake Node.js versi lama)
-// const fetch = require('node-fetch');
-
-// PAKE CARA 1 (LANGSUNG) - HAPUS const fetch = require('node-fetch');
+// Menggunakan Edge TTS (GRATIS, tanpa API Key!)
 
 exports.handler = async (event) => {
-  // CORS headers untuk semua response
+  // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -19,48 +10,40 @@ exports.handler = async (event) => {
     'Access-Control-Max-Age': '86400'
   };
 
-  // 1. HANDLE OPTIONS (Preflight request untuk CORS)
+  // Handle OPTIONS (CORS preflight)
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers,
-      body: ''
-    };
+    return { statusCode: 204, headers, body: '' };
   }
 
-  // 2. HANDLE GET (Untuk testing dari browser)
+  // Handle GET (testing)
   if (event.httpMethod === 'GET') {
     return {
       statusCode: 200,
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json'
-      },
+      headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status: 'ok',
-        message: '✅ Function RAJA AI berjalan! Gunakan method POST untuk chat atau TTS.',
+        message: '✅ RAJA AI Function berjalan! Menggunakan Edge TTS (GRATIS)',
+        tts_voices: {
+          id: 'Daftar voice: https://github.com/rany2/edge-tts#voices',
+          contoh: [
+            'id-ID-GadisNeural',      // Perempuan Indonesia
+            'id-ID-ArdiNeural',       // Laki-laki Indonesia
+            'en-US-JennyNeural',      // Perempuan Inggris US
+            'en-US-GuyNeural'         // Laki-laki Inggris US
+          ]
+        },
         timestamp: new Date().toISOString()
       })
     };
   }
 
-  // 3. HANDLE POST (Logic utama)
+  // Handle POST
   if (event.httpMethod === 'POST') {
     try {
-      let body;
-      try {
-        body = JSON.parse(event.body);
-      } catch (e) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Invalid JSON body' })
-        };
-      }
-
+      const body = JSON.parse(event.body);
       const { action, messages, text, voiceId } = body;
+
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
-      const ELEVEN_API_KEY = process.env.ELEVEN_LABS_KEY;
 
       // ========== ACTION: TEST ==========
       if (action === 'test') {
@@ -70,10 +53,8 @@ exports.handler = async (event) => {
           body: JSON.stringify({
             status: 'ok',
             message: 'Function is working!',
-            environment: {
-              groqKeyExists: !!GROQ_API_KEY,
-              elevenKeyExists: !!ELEVEN_API_KEY
-            }
+            tts: 'Edge TTS (gratis, tanpa API key)',
+            groqKeyExists: !!GROQ_API_KEY
           })
         };
       }
@@ -85,7 +66,8 @@ exports.handler = async (event) => {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-              error: 'GROQ_API_KEY tidak diset di environment variables!'
+              error: 'GROQ_API_KEY tidak diset di environment variables Netlify!',
+              solution: 'Tambahkan GROQ_API_KEY di Site Settings → Environment Variables'
             })
           };
         }
@@ -98,94 +80,191 @@ exports.handler = async (event) => {
           };
         }
 
-        // PAKE FETCH BAWAAN (Node.js 18+)
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: messages,
-            temperature: 1.4,
-            max_tokens: 150
-          })
-        });
+        try {
+          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${GROQ_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: messages,
+              temperature: 1.4,
+              max_tokens: 150
+            })
+          });
 
-        const data = await response.json();
+          const data = await response.json();
 
-        if (!response.ok) {
+          if (!response.ok) {
+            console.error('Groq API Error:', data);
+            return {
+              statusCode: response.status,
+              headers,
+              body: JSON.stringify({ 
+                error: data.error?.message || 'Groq API error',
+                details: data
+              })
+            };
+          }
+
           return {
-            statusCode: response.status,
+            statusCode: 200,
             headers,
-            body: JSON.stringify({ error: data.error?.message || 'Groq API error' })
+            body: JSON.stringify(data)
+          };
+        } catch (error) {
+          console.error('Fetch error:', error);
+          return {
+            statusCode: 502,
+            headers,
+            body: JSON.stringify({ error: `Network error: ${error.message}` })
           };
         }
-
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(data)
-        };
       }
 
-      // ========== ACTION: TTS (ElevenLabs API) ==========
+      // ========== ACTION: TTS (Edge TTS - GRATIS!) ==========
       if (action === 'tts') {
-        if (!ELEVEN_API_KEY) {
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ 
-              error: 'ELEVEN_LABS_KEY tidak diset di environment variables!'
-            })
-          };
-        }
-
-        if (!text || !voiceId) {
+        // Validasi input
+        if (!text || typeof text !== 'string') {
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: 'Text and voiceId required' })
+            body: JSON.stringify({ error: 'Text string required' })
           };
         }
 
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-          method: 'POST',
-          headers: {
-            'Accept': 'audio/mpeg',
-            'Content-Type': 'application/json',
-            'xi-api-key': ELEVEN_API_KEY
-          },
-          body: JSON.stringify({
-            text: text,
-            model_id: 'eleven_multilingual_v2',
-            voice_settings: {
-              stability: 0.20,
-              similarity_boost: 0.80
-            }
-          })
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          return {
-            statusCode: response.status,
-            headers,
-            body: JSON.stringify({ error: `ElevenLabs error: ${errorText}` })
-          };
-        }
-
-        const audioBuffer = await response.arrayBuffer();
-        const base64Audio = Buffer.from(audioBuffer).toString('base64');
-
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ audio: base64Audio })
+        // Voice ID dengan default Indonesia
+        let selectedVoice = voiceId || 'id-ID-ArdiNeural';
+        
+        // Mapping voice dari ElevenLabs ke Edge TTS (opsional)
+        const voiceMapping = {
+          'pNInz6obpgDQGcFmaJgB': 'id-ID-ArdiNeural',   // Maulana -> Ardi
+          'ErXwobaYiN019PkySvjV': 'id-ID-ArdiNeural',   // Ulul -> Ardi
+          'EXAVITQu4vr4xnSDxMaL': 'id-ID-GadisNeural',  // Inang -> Gadis
+          'THmdRseBiCqzMsZgjN1N': 'id-ID-GadisNeural'   // Siti -> Gadis
         };
+        
+        // Jika pake voice ID lama, mapping ke Edge voice
+        if (voiceMapping[selectedVoice]) {
+          selectedVoice = voiceMapping[selectedVoice];
+        }
+
+        // Daftar voice Edge yang tersedia:
+        // id-ID-ArdiNeural (laki-laki Indonesia)
+        // id-ID-GadisNeural (perempuan Indonesia)
+        // en-US-JennyNeural (perempuan US)
+        // en-US-GuyNeural (laki-laki US)
+        // en-GB-SoniaNeural (perempuan UK)
+        // jp-JP-NanamiNeural (perempuan Jepang)
+
+        try {
+          // Panggil Edge TTS API (menggunakan service gratis)
+          // Menggunakan API proxy dari edge-tts
+          const ttsResponse = await fetch('https://edge-tts.vercel.app/api/tts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              text: text,
+              voice: selectedVoice,
+              rate: 0,      // Kecepatan bicara (-100 to 100)
+              pitch: 0      // Nada bicara (-100 to 100)
+            })
+          });
+
+          if (!ttsResponse.ok) {
+            const errorText = await ttsResponse.text();
+            console.error('Edge TTS Error:', errorText);
+            
+            // Fallback: coba dengan voice default
+            if (selectedVoice !== 'id-ID-ArdiNeural') {
+              console.log('Retrying with default voice...');
+              const retryResponse = await fetch('https://edge-tts.vercel.app/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: text,
+                  voice: 'id-ID-ArdiNeural',
+                  rate: 0,
+                  pitch: 0
+                })
+              });
+              
+              if (retryResponse.ok) {
+                const audioBuffer = await retryResponse.arrayBuffer();
+                const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                return {
+                  statusCode: 200,
+                  headers,
+                  body: JSON.stringify({ 
+                    audio: base64Audio,
+                    contentType: 'audio/mpeg',
+                    voice: 'id-ID-ArdiNeural (fallback)'
+                  })
+                };
+              }
+            }
+            
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ error: `Edge TTS error: ${errorText}` })
+            };
+          }
+
+          const audioBuffer = await ttsResponse.arrayBuffer();
+          const base64Audio = Buffer.from(audioBuffer).toString('base64');
+
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ 
+              audio: base64Audio,
+              contentType: 'audio/mpeg',
+              voice: selectedVoice,
+              length: base64Audio.length
+            })
+          };
+        } catch (error) {
+          console.error('Edge TTS Fetch error:', error);
+          
+          // Fallback alternative using different service
+          try {
+            // Alternative TTS service (backup)
+            const fallbackResponse = await fetch(`https://api.streamelements.com/kappa/v2/speech?voice=${selectedVoice}&text=${encodeURIComponent(text)}`, {
+              method: 'GET'
+            });
+            
+            if (fallbackResponse.ok) {
+              const audioBuffer = await fallbackResponse.arrayBuffer();
+              const base64Audio = Buffer.from(audioBuffer).toString('base64');
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ 
+                  audio: base64Audio,
+                  contentType: 'audio/mpeg',
+                  voice: selectedVoice,
+                  source: 'fallback'
+                })
+              };
+            }
+          } catch (fallbackError) {
+            console.error('Fallback TTS error:', fallbackError);
+          }
+          
+          return {
+            statusCode: 502,
+            headers,
+            body: JSON.stringify({ error: `TTS error: ${error.message}` })
+          };
+        }
       }
 
+      // Unknown action
       return {
         statusCode: 400,
         headers,
@@ -195,11 +274,11 @@ exports.handler = async (event) => {
         })
       };
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unhandled error:', error);
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: error.message })
+        body: JSON.stringify({ error: `Internal server error: ${error.message}` })
       };
     }
   }
