@@ -831,47 +831,99 @@
         }
         
         async function textToSpeechEdge(text, emotion) {
-            updateStatusUI(`🎙️ Karakter ${emotion === 'angry' ? 'marah' : 'ngomong'}...`);
-            
-            if (window.updateSubtitleAndChatWithEmotion) {
-                window.updateSubtitleAndChatWithEmotion(text, true, '', emotion === 'angry' ? 'angry' : 'talking');
-            }
-            
-            const response = await fetch(FUNCTION_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    action: 'tts', 
-                    text: text, 
-                    voiceId: selectedVoice
-                })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || `HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            const audioBlob = base64ToBlob(data.audio, 'audio/mpeg');
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            
-            return new Promise((resolve, reject) => {
-                audio.onended = () => {
-                    URL.revokeObjectURL(audioUrl);
-                    if (window.triggerSpeakingWithEmotion) {
-                        window.triggerSpeakingWithEmotion(false, '', 'idle');
-                    }
-                    resolve();
-                };
-                audio.onerror = (e) => { 
-                    URL.revokeObjectURL(audioUrl); 
-                    reject(e); 
-                };
-                audio.play().catch(reject);
-            });
+    updateStatusUI(`🎙️ Karakter ${emotion === 'angry' ? 'marah' : 'ngomong'}...`);
+    
+    if (window.updateSubtitleAndChatWithEmotion) {
+        window.updateSubtitleAndChatWithEmotion(text, true, '', emotion === 'angry' ? 'angry' : 'talking');
+    }
+    
+    try {
+        const response = await fetch(FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                action: 'tts', 
+                text: text, 
+                voiceId: selectedVoice
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
+        
+        const data = await response.json();
+        
+        // Cek apakah server minta pake browser TTS
+        if (data.useBrowserTTS) {
+            console.log('Using browser TTS fallback');
+            return textToSpeechBrowser(text, emotion);
+        }
+        
+        const audioBlob = base64ToBlob(data.audio, 'audio/mpeg');
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        return new Promise((resolve, reject) => {
+            audio.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+                if (window.triggerSpeakingWithEmotion) {
+                    window.triggerSpeakingWithEmotion(false, '', 'idle');
+                }
+                resolve();
+            };
+            audio.onerror = (e) => { 
+                URL.revokeObjectURL(audioUrl); 
+                reject(e); 
+            };
+            audio.play().catch(reject);
+        });
+    } catch (error) {
+        console.error('Edge TTS error, using browser fallback:', error);
+        // Fallback ke browser TTS
+        return textToSpeechBrowser(text, emotion);
+    }
+}
+
+// BROWSER TTS FALLBACK (GRATIS, tanpa API)
+function textToSpeechBrowser(text, emotion) {
+    updateStatusUI(`🎙️ Browser TTS (fallback): ${emotion === 'angry' ? 'marah' : 'ngomong'}...`);
+    
+    return new Promise((resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Set bahasa berdasarkan voice yang dipilih
+        if (selectedVoice.includes('id-ID')) {
+            utterance.lang = 'id-ID';
+        } else if (selectedVoice.includes('en-US')) {
+            utterance.lang = 'en-US';
+        } else {
+            utterance.lang = 'id-ID';
+        }
+        
+        // Kecepatan bicara
+        utterance.rate = emotion === 'angry' ? 1.2 : 1.0;
+        utterance.pitch = emotion === 'angry' ? 1.2 : 1.0;
+        
+        utterance.onend = () => {
+            if (window.triggerSpeakingWithEmotion) {
+                window.triggerSpeakingWithEmotion(false, '', 'idle');
+            }
+            resolve();
+        };
+        
+        utterance.onerror = (e) => {
+            console.error('Browser TTS error:', e);
+            if (window.triggerSpeakingWithEmotion) {
+                window.triggerSpeakingWithEmotion(false, '', 'idle');
+            }
+            resolve();
+        };
+        
+        window.speechSynthesis.cancel(); // Hentikan yang sedang berjalan
+        window.speechSynthesis.speak(utterance);
+    });
+}
         
         async function handleUserSpeech(text) {
             if (isProcessing) return;
