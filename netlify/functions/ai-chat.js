@@ -1,5 +1,5 @@
 // netlify/functions/ai-chat.js
-// ✅ FULL VERSION - Dengan Debugging Lengkap
+// ✅ FULL VERSION - Support UUID dan sk_ format ElevenLabs
 
 exports.handler = async (event) => {
   // ============================================
@@ -13,20 +13,7 @@ exports.handler = async (event) => {
   };
 
   // ============================================
-  // 2. LOG REQUEST (Debugging)
-  // ============================================
-  console.log('📥 Incoming Request:', {
-    method: event.httpMethod,
-    path: event.path,
-    headers: {
-      'content-type': event.headers['content-type'],
-      'authorization': event.headers.authorization ? 'Bearer [hidden]' : 'none'
-    },
-    body: event.body ? 'present' : 'empty'
-  });
-
-  // ============================================
-  // 3. OPTIONS (CORS Preflight)
+  // 2. OPTIONS (CORS Preflight)
   // ============================================
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -37,11 +24,38 @@ exports.handler = async (event) => {
   }
 
   // ============================================
-  // 4. GET - Testing & Health Check
+  // 3. GET - Health Check & Debug
   // ============================================
   if (event.httpMethod === 'GET') {
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
     const ELEVEN_API_KEY = process.env.ELEVEN_LABS_KEY;
+
+    // Cek format key
+    let elevenFormat = 'unknown';
+    let elevenValid = false;
+    let elevenHint = '';
+
+    if (ELEVEN_API_KEY) {
+      const clean = ELEVEN_API_KEY.trim();
+      const uuidRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+      const skRegex = /^sk_[a-f0-9]{32,}$/i;
+      
+      if (uuidRegex.test(clean)) {
+        elevenFormat = 'legacy_uuid';
+        elevenValid = true;
+        elevenHint = '✅ Legacy UUID format (valid)';
+      } else if (skRegex.test(clean)) {
+        elevenFormat = 'modern_sk';
+        elevenValid = true;
+        elevenHint = '✅ Modern sk_ format (valid)';
+      } else {
+        elevenFormat = 'invalid';
+        elevenValid = false;
+        elevenHint = clean.startsWith('sk_') ? 
+          '❌ Invalid sk_ format (should be sk_ + 32+ hex chars)' : 
+          '❌ Unknown format';
+      }
+    }
 
     return {
       statusCode: 200,
@@ -53,10 +67,23 @@ exports.handler = async (event) => {
         nodeVersion: process.version,
         environment: {
           groq: GROQ_API_KEY ? '✅ configured' : '❌ missing',
-          eleven: ELEVEN_API_KEY ? `✅ configured (${ELEVEN_API_KEY.length} chars)` : '❌ missing',
-          elevenFirstChars: ELEVEN_API_KEY ? ELEVEN_API_KEY.substring(0, 8) : 'N/A'
+          eleven: {
+            exists: !!ELEVEN_API_KEY,
+            length: ELEVEN_API_KEY?.length || 0,
+            firstChars: ELEVEN_API_KEY?.substring(0, 8) || 'N/A',
+            format: elevenFormat,
+            valid: elevenValid,
+            hint: elevenHint
+          }
+        },
+        supportedFormats: {
+          elevenlabs: [
+            'UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (legacy)',
+            'sk_: sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx (modern)'
+          ]
         },
         endpoints: {
+          health: 'GET /',
           test: 'POST { "action": "test" }',
           chat: 'POST { "action": "chat", "messages": [...] }',
           tts: 'POST { "action": "tts", "text": "hello" }'
@@ -66,7 +93,7 @@ exports.handler = async (event) => {
   }
 
   // ============================================
-  // 5. POST - Main Logic
+  // 4. POST - Main Logic
   // ============================================
   if (event.httpMethod === 'POST') {
     try {
@@ -87,26 +114,56 @@ exports.handler = async (event) => {
       }
 
       const { action, messages, text, voiceId, model } = body;
-      console.log(`🎯 Action: ${action}`, { text: text?.substring(0, 50), voiceId });
+      console.log(`🎯 Action: ${action}`, { 
+        text: text?.substring(0, 50), 
+        voiceId,
+        model 
+      });
 
       // Get API Keys
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
       const ELEVEN_API_KEY = process.env.ELEVEN_LABS_KEY;
 
       // ==========================================
-      // 6. ACTION: TEST
+      // 5. ACTION: TEST (Enhanced)
       // ==========================================
       if (action === 'test') {
         console.log('🧪 Running test action');
         
-        // Test ElevenLabs key format
         let elevenValid = false;
         let elevenFormat = 'unknown';
+        let elevenHint = '';
+        let elevenSuggestion = '';
+
         if (ELEVEN_API_KEY) {
           const clean = ELEVEN_API_KEY.trim();
           const uuidRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-          elevenValid = uuidRegex.test(clean);
-          elevenFormat = elevenValid ? 'valid_uuid' : 'invalid_format';
+          const skRegex = /^sk_[a-f0-9]{32,}$/i;
+          
+          if (uuidRegex.test(clean)) {
+            elevenFormat = 'legacy_uuid';
+            elevenValid = true;
+            elevenHint = '✅ Legacy UUID format - valid';
+            elevenSuggestion = 'Works with all ElevenLabs models';
+          } else if (skRegex.test(clean)) {
+            elevenFormat = 'modern_sk';
+            elevenValid = true;
+            elevenHint = '✅ Modern sk_ format - valid';
+            elevenSuggestion = 'Recommended format for new accounts';
+          } else {
+            elevenFormat = 'invalid';
+            elevenValid = false;
+            if (clean.startsWith('sk_')) {
+              elevenHint = '❌ Invalid sk_ format';
+              elevenSuggestion = 'Expected: sk_ + 32+ hexadecimal characters. Found: ' + clean.length + ' chars';
+            } else if (clean.length === 36 && clean.includes('-')) {
+              elevenHint = '❌ Invalid UUID format';
+              elevenSuggestion = 'Check for typos or special characters';
+            } else {
+              elevenHint = '❌ Unknown format';
+              elevenSuggestion = 'Key should start with either UUID format or "sk_"';
+            }
+          }
         }
 
         return {
@@ -119,34 +176,47 @@ exports.handler = async (event) => {
             keys: {
               groq: {
                 exists: !!GROQ_API_KEY,
-                length: GROQ_API_KEY?.length || 0
+                length: GROQ_API_KEY?.length || 0,
+                firstChars: GROQ_API_KEY?.substring(0, 8) || 'N/A'
               },
               eleven: {
                 exists: !!ELEVEN_API_KEY,
                 length: ELEVEN_API_KEY?.length || 0,
                 firstChars: ELEVEN_API_KEY?.substring(0, 8) || 'N/A',
                 format: elevenFormat,
-                valid: elevenValid
+                valid: elevenValid,
+                hint: elevenHint,
+                suggestion: elevenSuggestion
               }
             },
-            environment: {
-              nodeVersion: process.version,
-              platform: process.platform,
-              envKeys: Object.keys(process.env).filter(k => 
-                k.includes('KEY') || k.includes('API') || k.includes('TOKEN')
-              )
+            supportedFormats: {
+              elevenlabs: [
+                {
+                  format: 'Legacy (UUID)',
+                  example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+                  pattern: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+                },
+                {
+                  format: 'Modern (sk_)',
+                  example: 'sk_abc123def45678901234567890123456',
+                  pattern: 'sk_ + 32+ hex characters'
+                }
+              ]
             },
-            suggestions: {
-              ifKeysMissing: 'Add GROQ_API_KEY and ELEVEN_LABS_KEY in Netlify Environment Variables',
-              ifElevenInvalid: 'Generate new API key at https://api.elevenlabs.io/app/settings/api-keys',
-              ifGroqMissing: 'Get API key at https://console.groq.com/keys'
+            models: {
+              recommended: 'eleven_turbo_v2',
+              alternatives: ['eleven_multilingual_v2', 'eleven_monolingual_v1 (deprecated)']
+            },
+            troubleshooting: {
+              ifInvalid: 'Generate new key at https://api.elevenlabs.io/app/settings/api-keys',
+              ifMissing: 'Add ELEVEN_LABS_KEY in Netlify Environment Variables'
             }
           })
         };
       }
 
       // ==========================================
-      // 7. ACTION: CHAT (Groq)
+      // 6. ACTION: CHAT (Groq)
       // ==========================================
       if (action === 'chat') {
         console.log('💬 Processing chat request');
@@ -158,8 +228,7 @@ exports.handler = async (event) => {
             headers,
             body: JSON.stringify({
               error: 'GROQ_API_KEY not configured',
-              solution: 'Add GROQ_API_KEY in Netlify Environment Variables',
-              action: 'chat'
+              solution: 'Add GROQ_API_KEY in Netlify Environment Variables'
             })
           };
         }
@@ -209,8 +278,7 @@ exports.handler = async (event) => {
               headers,
               body: JSON.stringify({
                 error: 'Groq API error',
-                detail: data.error?.message || 'Unknown error',
-                status: response.status
+                detail: data.error?.message || 'Unknown error'
               })
             };
           }
@@ -228,20 +296,19 @@ exports.handler = async (event) => {
             headers,
             body: JSON.stringify({
               error: 'Failed to reach Groq API',
-              message: error.message,
-              stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+              message: error.message
             })
           };
         }
       }
 
       // ==========================================
-      // 8. ACTION: TTS (ElevenLabs)
+      // 7. ACTION: TTS (ElevenLabs) - SUPPORT 2 FORMATS
       // ==========================================
       if (action === 'tts') {
         console.log('🔊 Processing TTS request');
         
-        // Validate ElevenLabs API Key
+        // Validasi ElevenLabs API Key
         if (!ELEVEN_API_KEY) {
           console.error('❌ ELEVEN_LABS_KEY missing');
           return {
@@ -249,12 +316,7 @@ exports.handler = async (event) => {
             headers,
             body: JSON.stringify({
               error: 'ELEVEN_LABS_KEY not configured',
-              solution: 'Add ELEVEN_LABS_KEY in Netlify Environment Variables',
-              debug: {
-                keysFound: Object.keys(process.env).filter(k => 
-                  k.toLowerCase().includes('eleven') || k.toLowerCase().includes('labs')
-                )
-              }
+              solution: 'Add ELEVEN_LABS_KEY in Netlify Environment Variables'
             })
           };
         }
@@ -263,15 +325,61 @@ exports.handler = async (event) => {
         const cleanKey = ELEVEN_API_KEY.trim();
         console.log(`🔑 ElevenLabs Key: ${cleanKey.substring(0, 8)}... (${cleanKey.length} chars)`);
 
-        // Validate key format
+        // 🔥 VALIDASI SUPPORT 2 FORMAT
         const uuidRegex = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
-        const isValidFormat = uuidRegex.test(cleanKey);
+        const skRegex = /^sk_[a-f0-9]{32,}$/i;
         
+        const isLegacyUuid = uuidRegex.test(cleanKey);
+        const isModernSk = skRegex.test(cleanKey);
+        const isValidFormat = isLegacyUuid || isModernSk;
+
         if (!isValidFormat) {
-          console.warn('⚠️ ElevenLabs key format looks invalid:', cleanKey.substring(0, 8));
+          console.warn('⚠️ Invalid key format:', {
+            isLegacyUuid,
+            isModernSk,
+            startsWith: cleanKey.substring(0, 3)
+          });
+
+          let hint = '';
+          if (cleanKey.startsWith('sk_')) {
+            hint = 'Your key starts with "sk_" but format is invalid. Should be sk_ + 32+ hex characters.';
+          } else if (cleanKey.length === 36 && cleanKey.includes('-')) {
+            hint = 'Your key looks like UUID but format is invalid. Check for typos.';
+          } else {
+            hint = 'Key format not recognized. Must be either UUID or sk_ format.';
+          }
+
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({
+              error: 'Invalid ElevenLabs API Key format',
+              hint: hint,
+              acceptedFormats: [
+                {
+                  type: 'Legacy UUID',
+                  format: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+                  example: 'a1b2c3d4-e5f6-7890-1234-567890abcdef'
+                },
+                {
+                  type: 'Modern sk_',
+                  format: 'sk_ + 32+ hexadecimal characters',
+                  example: 'sk_abc123def45678901234567890123456'
+                }
+              ],
+              yourKey: {
+                firstChars: cleanKey.substring(0, 8),
+                length: cleanKey.length,
+                startsWith: cleanKey.substring(0, 3),
+                isLegacyUuid: isLegacyUuid,
+                isModernSk: isModernSk
+              },
+              howToFix: 'Generate new key at https://api.elevenlabs.io/app/settings/api-keys'
+            })
+          };
         }
 
-        // Validate text
+        // Validasi text
         if (!text) {
           return {
             statusCode: 400,
@@ -283,7 +391,7 @@ exports.handler = async (event) => {
           };
         }
 
-        // Limit text length
+        // Limit text
         if (text.length > 5000) {
           return {
             statusCode: 400,
@@ -296,11 +404,15 @@ exports.handler = async (event) => {
           };
         }
 
+        // Voice ID & Model
         const voiceIdToUse = voiceId || 'pNInz6obpgDQGcFmaJgB';
-        console.log(`🎤 Using voice: ${voiceIdToUse}`);
+        
+        // 🔥 PAKAI MODEL TERBARU
+        const modelId = model || 'eleven_turbo_v2';
+        console.log(`🎤 Voice: ${voiceIdToUse}, Model: ${modelId}, Format: ${isModernSk ? 'sk_' : 'UUID'}`);
 
         try {
-          // Set timeout for fetch
+          // Set timeout
           const controller = new AbortController();
           const timeoutId = setTimeout(() => {
             console.warn('⏰ TTS request timeout, aborting...');
@@ -320,9 +432,9 @@ exports.handler = async (event) => {
               },
               body: JSON.stringify({
                 text: text,
-                model_id: 'eleven_monolingual_v1',
+                model_id: modelId,
                 voice_settings: {
-                  stability: 0.35,
+                  stability: 0.5,
                   similarity_boost: 0.75
                 }
               }),
@@ -332,56 +444,56 @@ exports.handler = async (event) => {
 
           clearTimeout(timeoutId);
 
-          // Log response details
+          // Log response
           console.log(`📡 ElevenLabs Response: ${response.status} ${response.statusText}`);
-          console.log('📡 Response Headers:', {
-            'content-type': response.headers.get('content-type'),
-            'content-length': response.headers.get('content-length'),
-            'x-request-id': response.headers.get('x-request-id')
-          });
 
-          // Handle 401 specifically
+          // 🔥 HANDLE 401 KHUSUS
           if (response.status === 401) {
-            let errorText = 'Could not parse error response';
+            let errorText = 'Authentication failed';
             try {
-              errorText = await response.text();
-              console.error('🔴 401 Error Body:', errorText);
+              const errorJson = await response.json();
+              errorText = JSON.stringify(errorJson);
             } catch (e) {
-              console.error('🔴 Could not read 401 error body');
+              errorText = await response.text();
             }
+
+            console.error('🔴 401 Error:', errorText);
 
             return {
               statusCode: 401,
               headers,
               body: JSON.stringify({
-                error: 'ElevenLabs API Key invalid or expired',
+                error: 'ElevenLabs authentication failed',
                 detail: errorText,
-                solution: 'Generate new API key at https://api.elevenlabs.io/app/settings/api-keys',
                 keyInfo: {
-                  length: cleanKey.length,
                   firstChars: cleanKey.substring(0, 8),
-                  format: isValidFormat ? 'UUID format' : 'Unknown format (expected UUID)',
-                  isValidFormat: isValidFormat
+                  length: cleanKey.length,
+                  format: isModernSk ? 'Modern sk_ format' : 'Legacy UUID format',
+                  validFormat: isValidFormat
                 },
                 troubleshooting: [
-                  '1. Generate new key at elevenlabs.io',
-                  '2. Update ELEVEN_LABS_KEY in Netlify Environment Variables',
-                  '3. Redeploy the function',
-                  '4. Test with action: "test" first'
-                ]
+                  '1. Verify your API key is correct',
+                  '2. Check if your ElevenLabs account has credits',
+                  '3. Ensure your account is active and not expired',
+                  '4. Try generating a new key at elevenlabs.io'
+                ],
+                model: modelId,
+                voiceId: voiceIdToUse
               })
             };
           }
 
           // Handle other errors
           if (!response.ok) {
-            let errorText = 'Could not parse error response';
+            let errorText = 'Unknown error';
             try {
-              errorText = await response.text();
-              console.error(`⚠️ ElevenLabs Error ${response.status}:`, errorText);
+              const errorJson = await response.json();
+              errorText = JSON.stringify(errorJson);
             } catch (e) {
-              console.error(`⚠️ Could not read error body for status ${response.status}`);
+              errorText = await response.text();
             }
+
+            console.error(`⚠️ ElevenLabs Error ${response.status}:`, errorText);
 
             return {
               statusCode: response.status,
@@ -409,8 +521,10 @@ exports.handler = async (event) => {
               audio: base64Audio,
               size: audioBuffer.byteLength,
               format: 'mp3',
+              model: modelId,
               voiceId: voiceIdToUse,
-              textLength: text.length
+              textLength: text.length,
+              keyFormat: isModernSk ? 'modern_sk' : 'legacy_uuid'
             })
           };
 
@@ -423,8 +537,7 @@ exports.handler = async (event) => {
               headers,
               body: JSON.stringify({
                 error: 'TTS request timeout',
-                message: 'Request exceeded 30 second limit',
-                suggestion: 'Try shorter text or check ElevenLabs service status'
+                message: 'Request exceeded 30 second limit'
               })
             };
           }
@@ -435,8 +548,7 @@ exports.handler = async (event) => {
               headers,
               body: JSON.stringify({
                 error: 'Cannot reach ElevenLabs API',
-                message: 'Network error or service unavailable',
-                detail: error.message
+                message: 'Network error or service unavailable'
               })
             };
           }
@@ -447,15 +559,14 @@ exports.handler = async (event) => {
             body: JSON.stringify({
               error: 'TTS processing failed',
               message: error.message,
-              type: error.name,
-              stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+              type: error.name
             })
           };
         }
       }
 
       // ==========================================
-      // 9. UNKNOWN ACTION
+      // 8. UNKNOWN ACTION
       // ==========================================
       console.warn(`⚠️ Unknown action: ${action}`);
       return {
@@ -465,7 +576,7 @@ exports.handler = async (event) => {
           error: 'Invalid action',
           valid_actions: ['test', 'chat', 'tts'],
           received: action,
-          example: {
+          examples: {
             test: { action: 'test' },
             chat: { 
               action: 'chat', 
@@ -476,7 +587,8 @@ exports.handler = async (event) => {
             tts: { 
               action: 'tts', 
               text: 'Hello world',
-              voiceId: 'optional'
+              voiceId: 'optional',
+              model: 'eleven_turbo_v2'
             }
           }
         })
@@ -484,7 +596,7 @@ exports.handler = async (event) => {
 
     } catch (error) {
       // ==========================================
-      // 10. UNHANDLED ERROR
+      // 9. UNHANDLED ERROR
       // ==========================================
       console.error('💥 Unhandled exception:', {
         message: error.message,
@@ -498,15 +610,14 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           error: 'Internal server error',
           message: error.message,
-          type: error.name,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+          type: error.name
         })
       };
     }
   }
 
   // ============================================
-  // 11. METHOD NOT ALLOWED
+  // 10. METHOD NOT ALLOWED
   // ============================================
   return {
     statusCode: 405,
