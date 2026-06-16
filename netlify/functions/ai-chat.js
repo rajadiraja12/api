@@ -1,7 +1,8 @@
 // netlify/functions/ai-chat.js
-// Menggunakan Edge TTS dengan endpoint yang WORKING
+// Menggunakan ElevenLabs API untuk TTS berkualitas tinggi
 
 exports.handler = async (event) => {
+  // CORS headers untuk semua response
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -9,27 +10,40 @@ exports.handler = async (event) => {
     'Access-Control-Max-Age': '86400'
   };
 
+  // 1. HANDLE OPTIONS (Preflight request untuk CORS)
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers, body: '' };
+    return {
+      statusCode: 204,
+      headers,
+      body: ''
+    };
   }
 
+  // 2. HANDLE GET (Untuk testing)
   if (event.httpMethod === 'GET') {
     return {
       statusCode: 200,
-      headers: { ...headers, 'Content-Type': 'application/json' },
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
         status: 'ok',
-        message: '✅ RAJA AI Function berjalan! Edge TTS (GRATIS)',
-        tts_status: 'Using working Edge TTS endpoint'
+        message: '✅ RAJA AI Function berjalan! Gunakan ElevenLabs TTS.',
+        timestamp: new Date().toISOString()
       })
     };
   }
 
+  // 3. HANDLE POST (Logic utama)
   if (event.httpMethod === 'POST') {
     try {
       const body = JSON.parse(event.body);
       const { action, messages, text, voiceId } = body;
+
+      // Ambil API key dari environment variables Netlify
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
+      const ELEVEN_API_KEY = process.env.ELEVEN_LABS_KEY;
 
       // ========== ACTION: TEST ==========
       if (action === 'test') {
@@ -39,56 +53,98 @@ exports.handler = async (event) => {
           body: JSON.stringify({
             status: 'ok',
             message: 'Function is working!',
-            groqKeyExists: !!GROQ_API_KEY
+            environment: {
+              groqKeyExists: !!GROQ_API_KEY,
+              elevenKeyExists: !!ELEVEN_API_KEY
+            }
           })
         };
       }
 
       // ========== ACTION: CHAT (Groq API) ==========
       if (action === 'chat') {
+        // Validasi API key Groq
         if (!GROQ_API_KEY) {
           return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-              error: 'GROQ_API_KEY tidak diset di environment variables Netlify!'
+              error: 'GROQ_API_KEY tidak diset di environment variables Netlify!',
+              solution: 'Tambahkan GROQ_API_KEY di Site Settings → Environment Variables'
             })
           };
         }
 
-        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: messages,
-            temperature: 1.4,
-            max_tokens: 150
-          })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
+        // Validasi messages
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
           return {
-            statusCode: response.status,
+            statusCode: 400,
             headers,
-            body: JSON.stringify({ error: data.error?.message || 'Groq API error' })
+            body: JSON.stringify({ error: 'Messages array required' })
           };
         }
 
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(data)
-        };
+        try {
+          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${GROQ_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: messages,
+              temperature: 1.4,
+              max_tokens: 150,
+              top_p: 0.95
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            console.error('Groq API Error:', data);
+            return {
+              statusCode: response.status,
+              headers,
+              body: JSON.stringify({ 
+                error: data.error?.message || 'Groq API error',
+                details: data
+              })
+            };
+          }
+
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify(data)
+          };
+        } catch (error) {
+          console.error('Fetch error:', error);
+          return {
+            statusCode: 502,
+            headers,
+            body: JSON.stringify({ error: `Network error: ${error.message}` })
+          };
+        }
       }
 
-      // ========== ACTION: TTS (Edge TTS - WORKING ENDPOINT) ==========
+      // ========== ACTION: TTS (ElevenLabs API) ==========
       if (action === 'tts') {
+        // Validasi API key ElevenLabs
+        if (!ELEVEN_API_KEY) {
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ 
+              error: 'ELEVEN_LABS_KEY tidak diset di environment variables Netlify!',
+              solution: 'Tambahkan ELEVEN_LABS_KEY di Site Settings → Environment Variables',
+              note: 'Daftar di elevenlabs.io untuk mendapatkan API key'
+            })
+          };
+        }
+
+        // Validasi input
         if (!text || typeof text !== 'string') {
           return {
             statusCode: 400,
@@ -97,82 +153,91 @@ exports.handler = async (event) => {
           };
         }
 
-        // Voice mapping
-        let selectedVoice = voiceId || 'id-ID-ArdiNeural';
-        
-        // ENDPOINT YANG WORKING (alternatif)
-        // Menggunakan API dari https://github.com/rany2/edge-tts
-        
-        const encText = encodeURIComponent(text);
-        
-        // Coba endpoint pertama (paling stabil)
-        let ttsUrl = `https://edge-tts.vercel.app/tts?text=${encText}&voice=${selectedVoice}&rate=0&pitch=0`;
-        
+        if (!voiceId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Voice ID required' })
+          };
+        }
+
+        // Daftar Voice ID ElevenLabs yang tersedia:
+        // Adam (pNInz6obpgDQGcFmaJgB) - American male
+        // Antoni (ErXwobaYiN019PkySvjV) - British male  
+        // Bella (EXAVITQu4vr4xnSDxMaL) - American female
+        // Dorothy (THmdRseBiCqzMsZgjN1N) - British female
+        // Rachel (21m00Tcm4TlvDq8ikWAM) - American female (populer)
+        // Dominic (nPczCjzI2devNBz1zQrb) - British male
+
         try {
-          console.log(`Trying Edge TTS with voice: ${selectedVoice}`);
-          
-          const ttsResponse = await fetch(ttsUrl, {
-            method: 'GET',
+          const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            method: 'POST',
             headers: {
-              'Accept': 'audio/mpeg'
-            }
+              'Accept': 'audio/mpeg',
+              'Content-Type': 'application/json',
+              'xi-api-key': ELEVEN_API_KEY
+            },
+            body: JSON.stringify({
+              text: text,
+              model_id: 'eleven_monolingual_v1',
+              voice_settings: {
+                stability: 0.35,
+                similarity_boost: 0.75,
+                style: 0.5,
+                use_speaker_boost: true
+              }
+            })
           });
 
-          if (!ttsResponse.ok) {
-            // Coba endpoint kedua (backup)
-            console.log('First endpoint failed, trying backup...');
-            const backupUrl = `https://edge-tts-api.vercel.app/api/tts?text=${encText}&voice=${selectedVoice}`;
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('ElevenLabs Error:', response.status, errorText);
             
-            const backupResponse = await fetch(backupUrl, {
-              method: 'GET',
-              headers: { 'Accept': 'audio/mpeg' }
-            });
-            
-            if (!backupResponse.ok) {
-              // Coba endpoint ketiga (StreamElements - alternative)
-              console.log('Second endpoint failed, trying StreamElements...');
-              const streamElementsUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${selectedVoice}&text=${encText}`;
-              
-              const seResponse = await fetch(streamElementsUrl, {
-                method: 'GET',
-                headers: { 'Accept': 'audio/mpeg' }
-              });
-              
-              if (!seResponse.ok) {
-                throw new Error(`All TTS endpoints failed. Status: ${seResponse.status}`);
-              }
-              
-              const audioBuffer = await seResponse.arrayBuffer();
-              const base64Audio = Buffer.from(audioBuffer).toString('base64');
-              
+            // Handle error spesifik
+            if (response.status === 401) {
               return {
-                statusCode: 200,
+                statusCode: 401,
                 headers,
                 body: JSON.stringify({ 
-                  audio: base64Audio,
-                  contentType: 'audio/mpeg',
-                  voice: selectedVoice,
-                  source: 'streamelements'
+                  error: 'ElevenLabs API Key tidak valid atau sudah habis masa berlakunya',
+                  solution: 'Cek API Key di elevenlabs.io → Profile → API Key'
                 })
               };
             }
             
-            const audioBuffer = await backupResponse.arrayBuffer();
-            const base64Audio = Buffer.from(audioBuffer).toString('base64');
+            if (response.status === 402) {
+              return {
+                statusCode: 402,
+                headers,
+                body: JSON.stringify({ 
+                  error: 'Kuota ElevenLabs habis!',
+                  solution: 'Top up credit di elevenlabs.io atau coba besok lagi'
+                })
+              };
+            }
             
+            if (response.status === 429) {
+              return {
+                statusCode: 429,
+                headers,
+                body: JSON.stringify({ 
+                  error: 'Terlalu banyak request! Rate limit ElevenLabs.',
+                  solution: 'Tunggu beberapa detik sebelum coba lagi'
+                })
+              };
+            }
+
             return {
-              statusCode: 200,
+              statusCode: response.status,
               headers,
               body: JSON.stringify({ 
-                audio: base64Audio,
-                contentType: 'audio/mpeg',
-                voice: selectedVoice,
-                source: 'edge-tts-api'
+                error: `ElevenLabs API error: ${errorText}`,
+                status: response.status
               })
             };
           }
 
-          const audioBuffer = await ttsResponse.arrayBuffer();
+          const audioBuffer = await response.arrayBuffer();
           const base64Audio = Buffer.from(audioBuffer).toString('base64');
 
           return {
@@ -181,29 +246,25 @@ exports.handler = async (event) => {
             body: JSON.stringify({ 
               audio: base64Audio,
               contentType: 'audio/mpeg',
-              voice: selectedVoice,
-              source: 'edge-tts-vercel'
+              voiceId: voiceId,
+              length: base64Audio.length,
+              source: 'elevenlabs'
             })
           };
-          
         } catch (error) {
-          console.error('Edge TTS Error:', error);
-          
-          // LAST RESORT: Pake Browser Speech API (client-side)
-          // Kirim sinyal ke client untuk pake browser TTS
+          console.error('ElevenLabs Fetch error:', error);
           return {
-            statusCode: 200,
+            statusCode: 502,
             headers,
             body: JSON.stringify({ 
-              useBrowserTTS: true,
-              text: text,
-              voice: selectedVoice,
-              message: 'Server TTS error, using browser fallback'
+              error: `Network error: ${error.message}`,
+              solution: 'Cek koneksi internet atau coba lagi nanti'
             })
           };
         }
       }
 
+      // Unknown action
       return {
         statusCode: 400,
         headers,
@@ -217,14 +278,21 @@ exports.handler = async (event) => {
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: `Internal server error: ${error.message}` })
+        body: JSON.stringify({ 
+          error: `Internal server error: ${error.message}`,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        })
       };
     }
   }
 
+  // 4. HANDLE METHOD LAINNYA
   return {
     statusCode: 405,
     headers,
-    body: JSON.stringify({ error: 'Method not allowed' })
+    body: JSON.stringify({ 
+      error: 'Method not allowed',
+      allowed_methods: ['GET', 'POST', 'OPTIONS']
+    })
   };
 };
