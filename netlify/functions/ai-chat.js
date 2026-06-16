@@ -1,12 +1,11 @@
 // netlify/functions/ai-chat.js
-// VERSI FINAL - SUDAH TESTED
+// PASTIKAN FILE INI ADA DI netlify/functions/ai-chat.js
 
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Max-Age': '86400'
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   };
 
   // OPTIONS
@@ -14,19 +13,17 @@ exports.handler = async (event) => {
     return { statusCode: 204, headers, body: '' };
   }
 
-  // GET - Testing
+  // GET - Cek function jalan
   if (event.httpMethod === 'GET') {
     return {
       statusCode: 200,
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status: 'ok',
-        message: 'RAJA AI Function is running!',
-        env: {
-          groq: !!process.env.GROQ_API_KEY,
-          eleven: !!process.env.ELEVEN_LABS_KEY,
-          elevenLength: process.env.ELEVEN_LABS_KEY?.length || 0
-        }
+        message: '✅ Function ditemukan dan berjalan!',
+        timestamp: new Date().toISOString(),
+        path: event.path,
+        httpMethod: event.httpMethod
       })
     };
   }
@@ -40,7 +37,7 @@ exports.handler = async (event) => {
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
       const ELEVEN_API_KEY = process.env.ELEVEN_LABS_KEY;
 
-      // ========== ACTION: TEST ==========
+      // TEST
       if (action === 'test') {
         return {
           statusCode: 200,
@@ -49,19 +46,18 @@ exports.handler = async (event) => {
             status: 'ok',
             elevenKeyExists: !!ELEVEN_API_KEY,
             elevenKeyLength: ELEVEN_API_KEY?.length || 0,
-            elevenKeyFirst5: ELEVEN_API_KEY?.substring(0, 5) || 'null',
             groqKeyExists: !!GROQ_API_KEY
           })
         };
       }
 
-      // ========== ACTION: CHAT ==========
+      // CHAT
       if (action === 'chat') {
         if (!GROQ_API_KEY) {
           return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: 'GROQ_API_KEY not configured' })
+            body: JSON.stringify({ error: 'GROQ_API_KEY not set' })
           };
         }
 
@@ -83,43 +79,25 @@ exports.handler = async (event) => {
         return { statusCode: response.status, headers, body: JSON.stringify(data) };
       }
 
-      // ========== ACTION: TTS (ElevenLabs) ==========
+      // TTS
       if (action === 'tts') {
         if (!ELEVEN_API_KEY) {
           return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ 
-              error: 'ELEVEN_LABS_KEY not configured in Netlify',
-              solution: 'Add ELEVEN_LABS_KEY in Site Settings → Environment Variables'
-            })
+            body: JSON.stringify({ error: 'ELEVEN_LABS_KEY not set' })
           };
         }
 
-        if (!text) {
+        if (!text || !voiceId) {
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: 'Text required' })
+            body: JSON.stringify({ error: 'Text and voiceId required' })
           };
         }
 
-        // PASTIKAN VOICE ID VALID
-        const validVoiceIds = [
-          'pNInz6obpgDQGcFmaJgB', // Adam
-          'ErXwobaYiN019PkySvjV', // Antoni
-          'EXAVITQu4vr4xnSDxMaL', // Bella
-          'THmdRseBiCqzMsZgjN1N'  // Dorothy
-        ];
-
-        let finalVoiceId = voiceId;
-        if (!validVoiceIds.includes(voiceId)) {
-          finalVoiceId = 'pNInz6obpgDQGcFmaJgB'; // Default Adam
-        }
-
-        console.log(`🎤 Calling ElevenLabs with voice: ${finalVoiceId}`);
-
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}`, {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
           method: 'POST',
           headers: {
             'Accept': 'audio/mpeg',
@@ -136,19 +114,6 @@ exports.handler = async (event) => {
           })
         });
 
-        console.log(`ElevenLabs response status: ${response.status}`);
-
-        if (response.status === 401) {
-          return {
-            statusCode: 401,
-            headers,
-            body: JSON.stringify({ 
-              error: 'ElevenLabs API Key invalid!',
-              solution: 'Generate new API key at elevenlabs.io'
-            })
-          };
-        }
-
         if (!response.ok) {
           const errorText = await response.text();
           return {
@@ -164,10 +129,7 @@ exports.handler = async (event) => {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ 
-            audio: base64Audio,
-            voiceId: finalVoiceId
-          })
+          body: JSON.stringify({ audio: base64Audio })
         };
       }
 
@@ -177,7 +139,6 @@ exports.handler = async (event) => {
         body: JSON.stringify({ error: 'Invalid action' })
       };
     } catch (error) {
-      console.error('Error:', error);
       return {
         statusCode: 500,
         headers,
