@@ -1,8 +1,7 @@
 // netlify/functions/ai-chat.js
-// Menggunakan ElevenLabs API untuk TTS berkualitas tinggi
+// VERSI FINAL - SUDAH TESTED
 
 exports.handler = async (event) => {
-  // CORS headers untuk semua response
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -10,38 +9,34 @@ exports.handler = async (event) => {
     'Access-Control-Max-Age': '86400'
   };
 
-  // 1. HANDLE OPTIONS (Preflight request untuk CORS)
+  // OPTIONS
   if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 204,
-      headers,
-      body: ''
-    };
+    return { statusCode: 204, headers, body: '' };
   }
 
-  // 2. HANDLE GET (Untuk testing)
+  // GET - Testing
   if (event.httpMethod === 'GET') {
     return {
       statusCode: 200,
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json'
-      },
+      headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         status: 'ok',
-        message: '✅ RAJA AI Function berjalan! Gunakan ElevenLabs TTS.',
-        timestamp: new Date().toISOString()
+        message: 'RAJA AI Function is running!',
+        env: {
+          groq: !!process.env.GROQ_API_KEY,
+          eleven: !!process.env.ELEVEN_LABS_KEY,
+          elevenLength: process.env.ELEVEN_LABS_KEY?.length || 0
+        }
       })
     };
   }
 
-  // 3. HANDLE POST (Logic utama)
+  // POST
   if (event.httpMethod === 'POST') {
     try {
       const body = JSON.parse(event.body);
       const { action, messages, text, voiceId } = body;
 
-      // Ambil API key dari environment variables Netlify
       const GROQ_API_KEY = process.env.GROQ_API_KEY;
       const ELEVEN_API_KEY = process.env.ELEVEN_LABS_KEY;
 
@@ -52,247 +47,148 @@ exports.handler = async (event) => {
           headers,
           body: JSON.stringify({
             status: 'ok',
-            message: 'Function is working!',
-            environment: {
-              groqKeyExists: !!GROQ_API_KEY,
-              elevenKeyExists: !!ELEVEN_API_KEY
-            }
+            elevenKeyExists: !!ELEVEN_API_KEY,
+            elevenKeyLength: ELEVEN_API_KEY?.length || 0,
+            elevenKeyFirst5: ELEVEN_API_KEY?.substring(0, 5) || 'null',
+            groqKeyExists: !!GROQ_API_KEY
           })
         };
       }
 
-      // ========== ACTION: CHAT (Groq API) ==========
+      // ========== ACTION: CHAT ==========
       if (action === 'chat') {
-        // Validasi API key Groq
         if (!GROQ_API_KEY) {
           return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ 
-              error: 'GROQ_API_KEY tidak diset di environment variables Netlify!',
-              solution: 'Tambahkan GROQ_API_KEY di Site Settings → Environment Variables'
-            })
+            body: JSON.stringify({ error: 'GROQ_API_KEY not configured' })
           };
         }
 
-        // Validasi messages
-        if (!messages || !Array.isArray(messages) || messages.length === 0) {
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'Messages array required' })
-          };
-        }
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GROQ_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: messages,
+            temperature: 1.4,
+            max_tokens: 150
+          })
+        });
 
-        try {
-          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${GROQ_API_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: 'llama-3.3-70b-versatile',
-              messages: messages,
-              temperature: 1.4,
-              max_tokens: 150,
-              top_p: 0.95
-            })
-          });
-
-          const data = await response.json();
-
-          if (!response.ok) {
-            console.error('Groq API Error:', data);
-            return {
-              statusCode: response.status,
-              headers,
-              body: JSON.stringify({ 
-                error: data.error?.message || 'Groq API error',
-                details: data
-              })
-            };
-          }
-
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify(data)
-          };
-        } catch (error) {
-          console.error('Fetch error:', error);
-          return {
-            statusCode: 502,
-            headers,
-            body: JSON.stringify({ error: `Network error: ${error.message}` })
-          };
-        }
+        const data = await response.json();
+        return { statusCode: response.status, headers, body: JSON.stringify(data) };
       }
 
-      // ========== ACTION: TTS (ElevenLabs API) ==========
+      // ========== ACTION: TTS (ElevenLabs) ==========
       if (action === 'tts') {
-        // Validasi API key ElevenLabs
         if (!ELEVEN_API_KEY) {
           return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-              error: 'ELEVEN_LABS_KEY tidak diset di environment variables Netlify!',
-              solution: 'Tambahkan ELEVEN_LABS_KEY di Site Settings → Environment Variables',
-              note: 'Daftar di elevenlabs.io untuk mendapatkan API key'
+              error: 'ELEVEN_LABS_KEY not configured in Netlify',
+              solution: 'Add ELEVEN_LABS_KEY in Site Settings → Environment Variables'
             })
           };
         }
 
-        // Validasi input
-        if (!text || typeof text !== 'string') {
+        if (!text) {
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: 'Text string required' })
+            body: JSON.stringify({ error: 'Text required' })
           };
         }
 
-        if (!voiceId) {
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'Voice ID required' })
-          };
+        // PASTIKAN VOICE ID VALID
+        const validVoiceIds = [
+          'pNInz6obpgDQGcFmaJgB', // Adam
+          'ErXwobaYiN019PkySvjV', // Antoni
+          'EXAVITQu4vr4xnSDxMaL', // Bella
+          'THmdRseBiCqzMsZgjN1N'  // Dorothy
+        ];
+
+        let finalVoiceId = voiceId;
+        if (!validVoiceIds.includes(voiceId)) {
+          finalVoiceId = 'pNInz6obpgDQGcFmaJgB'; // Default Adam
         }
 
-        // Daftar Voice ID ElevenLabs yang tersedia:
-        // Adam (pNInz6obpgDQGcFmaJgB) - American male
-        // Antoni (ErXwobaYiN019PkySvjV) - British male  
-        // Bella (EXAVITQu4vr4xnSDxMaL) - American female
-        // Dorothy (THmdRseBiCqzMsZgjN1N) - British female
-        // Rachel (21m00Tcm4TlvDq8ikWAM) - American female (populer)
-        // Dominic (nPczCjzI2devNBz1zQrb) - British male
+        console.log(`🎤 Calling ElevenLabs with voice: ${finalVoiceId}`);
 
-        try {
-          const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-            method: 'POST',
-            headers: {
-              'Accept': 'audio/mpeg',
-              'Content-Type': 'application/json',
-              'xi-api-key': ELEVEN_API_KEY
-            },
-            body: JSON.stringify({
-              text: text,
-              model_id: 'eleven_monolingual_v1',
-              voice_settings: {
-                stability: 0.35,
-                similarity_boost: 0.75,
-                style: 0.5,
-                use_speaker_boost: true
-              }
-            })
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('ElevenLabs Error:', response.status, errorText);
-            
-            // Handle error spesifik
-            if (response.status === 401) {
-              return {
-                statusCode: 401,
-                headers,
-                body: JSON.stringify({ 
-                  error: 'ElevenLabs API Key tidak valid atau sudah habis masa berlakunya',
-                  solution: 'Cek API Key di elevenlabs.io → Profile → API Key'
-                })
-              };
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': ELEVEN_API_KEY.trim()
+          },
+          body: JSON.stringify({
+            text: text,
+            model_id: 'eleven_monolingual_v1',
+            voice_settings: {
+              stability: 0.35,
+              similarity_boost: 0.75
             }
-            
-            if (response.status === 402) {
-              return {
-                statusCode: 402,
-                headers,
-                body: JSON.stringify({ 
-                  error: 'Kuota ElevenLabs habis!',
-                  solution: 'Top up credit di elevenlabs.io atau coba besok lagi'
-                })
-              };
-            }
-            
-            if (response.status === 429) {
-              return {
-                statusCode: 429,
-                headers,
-                body: JSON.stringify({ 
-                  error: 'Terlalu banyak request! Rate limit ElevenLabs.',
-                  solution: 'Tunggu beberapa detik sebelum coba lagi'
-                })
-              };
-            }
+          })
+        });
 
-            return {
-              statusCode: response.status,
-              headers,
-              body: JSON.stringify({ 
-                error: `ElevenLabs API error: ${errorText}`,
-                status: response.status
-              })
-            };
-          }
+        console.log(`ElevenLabs response status: ${response.status}`);
 
-          const audioBuffer = await response.arrayBuffer();
-          const base64Audio = Buffer.from(audioBuffer).toString('base64');
-
+        if (response.status === 401) {
           return {
-            statusCode: 200,
+            statusCode: 401,
             headers,
             body: JSON.stringify({ 
-              audio: base64Audio,
-              contentType: 'audio/mpeg',
-              voiceId: voiceId,
-              length: base64Audio.length,
-              source: 'elevenlabs'
-            })
-          };
-        } catch (error) {
-          console.error('ElevenLabs Fetch error:', error);
-          return {
-            statusCode: 502,
-            headers,
-            body: JSON.stringify({ 
-              error: `Network error: ${error.message}`,
-              solution: 'Cek koneksi internet atau coba lagi nanti'
+              error: 'ElevenLabs API Key invalid!',
+              solution: 'Generate new API key at elevenlabs.io'
             })
           };
         }
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          return {
+            statusCode: response.status,
+            headers,
+            body: JSON.stringify({ error: `ElevenLabs error: ${errorText}` })
+          };
+        }
+
+        const audioBuffer = await response.arrayBuffer();
+        const base64Audio = Buffer.from(audioBuffer).toString('base64');
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            audio: base64Audio,
+            voiceId: finalVoiceId
+          })
+        };
       }
 
-      // Unknown action
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: 'Invalid action',
-          valid_actions: ['test', 'chat', 'tts']
-        })
+        body: JSON.stringify({ error: 'Invalid action' })
       };
     } catch (error) {
-      console.error('Unhandled error:', error);
+      console.error('Error:', error);
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ 
-          error: `Internal server error: ${error.message}`,
-          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        })
+        body: JSON.stringify({ error: error.message })
       };
     }
   }
 
-  // 4. HANDLE METHOD LAINNYA
   return {
     statusCode: 405,
     headers,
-    body: JSON.stringify({ 
-      error: 'Method not allowed',
-      allowed_methods: ['GET', 'POST', 'OPTIONS']
-    })
+    body: JSON.stringify({ error: 'Method not allowed' })
   };
 };

@@ -6,14 +6,17 @@
   node_bundler = "esbuild"
   directory = "netlify/functions"
 
+# Timeout dinaikkan untuk ElevenLabs (proses TTS butuh waktu)
 [functions."ai-chat"]
   timeout = 30
 
+# Redirect untuk API
 [[redirects]]
   from = "/.netlify/functions/ai-chat"
   to = "/.netlify/functions/ai-chat"
   status = 200
 
+# Fallback untuk SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
