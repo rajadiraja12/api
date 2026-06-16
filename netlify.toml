@@ -6,15 +6,16 @@
   node_bundler = "esbuild"
   directory = "netlify/functions"
 
-# TIMEOUT DINAIKKAN JADI 30 DETIK
 [functions."ai-chat"]
   timeout = 30
 
+# Redirect root ke index.html
 [[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
+  from = "/"
+  to = "/index.html"
   status = 200
 
+# Fallback untuk semua route (SPA)
 [[redirects]]
   from = "/*"
   to = "/index.html"
